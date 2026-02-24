@@ -28,7 +28,7 @@ class ReactWebview implements WebviewViewProvider {
 
     public resolveWebviewView(webviewView: WebviewView, _context: WebviewViewResolveContext, _token: CancellationToken): void | Thenable<void> {
         this._view = webviewView;
-
+ 
         this._view.webview.options = {
             enableScripts: true,
             localResourceRoots: [this._extensionUri]

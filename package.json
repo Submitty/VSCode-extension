@@ -6,6 +6,9 @@
   "engines": {
     "vscode": "^1.95.0"
   },
+  "extensionDependencies": [
+    "vscode.git"
+  ],
   "categories": [
     "Other"
   ],
@@ -42,7 +45,7 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "reactWebview",
+          "id": "submittySidebar",
           "title": "Submitty",
           "icon": "media/duck.png"
         }
@@ -62,13 +65,6 @@
           "id": "submittyWebview",
           "name": "Sidebar",
           "icon": "media/duck.png"
-        }
-      ],
-      "reactWebview": [
-        {
-          "type": "webview",
-          "id": "reactWebview",
-          "name": "React Webview"
         }
       ]
     }

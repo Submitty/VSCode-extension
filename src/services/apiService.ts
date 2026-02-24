@@ -3,31 +3,9 @@
 import * as vscode from 'vscode';
 import { ApiClient } from './apiClient';
 
-interface Course {
-    semester: string;
-    title: string;
-    display_name: string;
-    display_semester: string;
-    user_group: number;
-    registration_section: string;
-}
+import { CourseResponse, LoginResponse, GradableResponse } from '../interfaces/Responses';
+import { AutoGraderDetails } from '../interfaces/AutoGraderDetails';
 
-interface ApiResponse {
-    status: string;
-    data: {
-        unarchived_courses: Course[];
-        dropped_courses: Course[];
-    };
-    message?: string;
-}
-
-interface LoginResponse {
-    status: string;
-    data: {
-        token: string;
-    };
-    message?: string;
-}
 
 export class ApiService {
     private client: ApiClient;
@@ -70,16 +48,22 @@ export class ApiService {
         }
     }
 
+    async fetchMe(): Promise<any> {
+        try {
+            const response = await this.client.get<any>('/api/me');
+            return response.data;
+        } catch (error: any) {
+            throw new Error(error.response?.data?.message || 'Failed to fetch me.');
+        }
+    }
+
+
     /**
      * Fetch all courses for the authenticated user
      */
-    async fetchCourses(token: string): Promise<ApiResponse> {
+    async fetchCourses(token?: string): Promise<CourseResponse> {
         try {
-            const response = await this.client.get<ApiResponse>('/api/courses', {
-                headers: {
-                    Authorization: token,
-                },
-            });
+            const response = await this.client.get<CourseResponse>('/api/courses');
             return response.data;
         } catch (error: any) {
             console.error('Error fetching courses:', error);
@@ -87,31 +71,94 @@ export class ApiService {
         }
     }
 
+    async fetchGradables(courseId: string, term: string): Promise<GradableResponse> {
+        try {
+            const url = `/api/${term}/${courseId}/gradeables`;
+            const response = await this.client.get<GradableResponse>(url);
+            return response.data;
+        } catch (error: any) {
+            console.error('Error fetching gradables:', error);
+            throw new Error(error.response?.data?.message || 'Failed to fetch gradables.');
+        }
+    }
+
     /**
      * Fetch grade details for a specific homework assignment
      */
-    async fetchGradeDetails(hw: string): Promise<any> {
-        // Hardcoded grade details
-        return {
-            score: '25/40',
-            tests: [
-                { name: 'Test 1', passed: true },
-                { name: 'Test 2', passed: false },
-                { name: 'Test 3', passed: true },
-                { name: 'Test 4', passed: false },
-            ]
-        };
+    async fetchGradeDetails(term: string, courseId: string, gradeableId: string): Promise<AutoGraderDetails> {
+        try {
+            const response = await this.client.get<AutoGraderDetails>(`/api/${term}/${courseId}/gradeable/${gradeableId}/values`);
+            return response.data;
+        } catch (error: any) {
+            console.error('Error fetching grade details:', error);
+            throw new Error(error.response?.data?.message || 'Failed to fetch grade details.');
+        }
     }
+
+    /**
+     * Poll fetchGradeDetails until autograding_complete is true and test_cases has data.
+     * @param intervalMs Delay between requests (default 2000)
+     * @param timeoutMs Stop after this many ms (default 300000 = 5 min); 0 = no timeout
+     * @returns The final AutoGraderDetails with complete data
+     */
+    async pollGradeDetailsUntilComplete(
+        term: string,
+        courseId: string,
+        gradeableId: string,
+        options?: { intervalMs?: number; timeoutMs?: number; token?: vscode.CancellationToken }
+    ): Promise<AutoGraderDetails> {
+        const intervalMs = options?.intervalMs ?? 2000;
+        const timeoutMs = options?.timeoutMs ?? 300000;
+        const token = options?.token;
+        const deadline = timeoutMs > 0 ? Date.now() + timeoutMs : 0;
+
+        const isComplete = (res: AutoGraderDetails): boolean =>
+            res?.data?.autograding_complete === true &&
+            Array.isArray(res.data.test_cases) &&
+            res.data.test_cases.length > 0;
+
+        for (;;) {
+            if (token?.isCancellationRequested) {
+                throw new Error('Cancelled');
+            }
+            if (deadline > 0 && Date.now() >= deadline) {
+                throw new Error('Autograding did not complete within the timeout.');
+            }
+
+            const result = await this.fetchGradeDetails(term, courseId, gradeableId);
+            if (isComplete(result)) {
+                return result;
+            }
+
+            await new Promise((r) => setTimeout(r, intervalMs));
+        }
+    }
+
+    async submitVCSGradable(term: string, courseId: string, gradeableId: string): Promise<any> {
+        try {
+            // git_repo_id is literally not used, but is required by the API *ugh*
+            const url = `/api/${term}/${courseId}/gradeable/${gradeableId}/upload?vcs_upload=true&git_repo_id=true`;
+            const response = await this.client.post<any>(url);
+            return response.data;
+        } catch (error: any) {
+            console.error('Error submitting VCS gradable:', error);
+            throw new Error(error.response?.data?.message || 'Failed to submit VCS gradable.');
+        }
+    }
+
 
     /**
      * Fetch previous attempts for a specific homework assignment
      */
-    async fetchPreviousAttempts(hw: string): Promise<any[]> {
-        // Hardcoded previous attempts
-        return [
-            { score: '15/40', tests: [{ name: 'Test 1', passed: false }, { name: 'Test 2', passed: false }, { name: 'Test 3', passed: true }, { name: 'Test 4', passed: false }] },
-            { score: '25/40', tests: [{ name: 'Test 1', passed: true }, { name: 'Test 2', passed: false }, { name: 'Test 3', passed: true }, { name: 'Test 4', passed: false }] }
-        ];
+    async fetchPreviousAttempts(term: string, courseId: string, gradeableId: string): Promise<any[]> {
+        try {
+            const url = `/api/${term}/${courseId}/gradeable/${gradeableId}/attempts`;
+            const response = await this.client.get<any>(url);
+            return response.data;
+        } catch (error: any) {
+            console.error('Error fetching previous attempts:', error);
+            throw new Error(error.response?.data?.message || 'Failed to fetch previous attempts.');
+        }
     }
 
     static getInstance(context: vscode.ExtensionContext, apiBaseUrl: string): ApiService {

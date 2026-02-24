@@ -21,8 +21,8 @@ export class ApiClient {
                 // Add any request logging or modification here
                 return config;
             },
-            (error) => {
-                return Promise.reject(error);
+            (error: Error) => {
+                return Promise.reject(new Error(error.message || 'Request failed'));
             }
         );
 
@@ -31,9 +31,9 @@ export class ApiClient {
             (response) => {
                 return response;
             },
-            (error) => {
+            (error: Error) => {
                 // Handle common errors here
-                return Promise.reject(error);
+                return Promise.reject(new Error(error.message || 'Response failed'));
             }
         );
     }
