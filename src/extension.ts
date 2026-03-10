@@ -1,12 +1,9 @@
 import * as vscode from 'vscode';
 import { SidebarProvider } from './sidebarProvider';
-import ReactWebview from './reactWebview';
-import { ExtensionContextUtil } from './util/extensionContextUtil';
 import { ApiService } from './services/apiService';
 import { TestingService } from './services/testingService';
 
-export function activate(context: vscode.ExtensionContext) {
-    ExtensionContextUtil.getExtensionContext(context);
+export function activate(context: vscode.ExtensionContext): void {
     const apiService = ApiService.getInstance(context, '');
     const testingService = new TestingService(context, apiService);
     const sidebarProvider = new SidebarProvider(context, testingService);
@@ -15,12 +12,6 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.registerWebviewViewProvider('submittyWebview', sidebarProvider)
     );
 
-    // context.subscriptions.push(
-    //     vscode.window.registerWebviewViewProvider(
-    //         ReactWebview.viewType,
-    //         ReactWebview.getInstance(context.extensionUri),
-    //     )
-    // );
 }
 
 export function deactivate() { }

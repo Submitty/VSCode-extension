@@ -1,9 +1,6 @@
 // eslint.config.js
 import js from '@eslint/js';
 import globals from 'globals';
-import react from 'eslint-plugin-react'; // For general React rules
-import reactHooks from 'eslint-plugin-react-hooks';
-import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 import prettierConfig from 'eslint-config-prettier';
 import { defineConfig } from 'eslint/config';
@@ -94,59 +91,4 @@ export default defineConfig([
     },
   },
 
-  // --- 4. Configuration for Webview UI (React/TypeScript) ---
-  {
-    files: ['webview-ui/src/**/*.{ts,tsx}'], // Only apply to your React webview files
-    // Specific language options for the React part of the project
-    languageOptions: {
-      ecmaVersion: 2020, // Or 2021/2022 if your target environment supports it
-      sourceType: 'module',
-      // Define global variables for the browser environment
-      globals: {
-        ...globals.browser,
-      },
-      // Specify the TypeScript parser for these files
-      parser: tseslint.parser,
-      // Configuration for the TypeScript parser, including JSX support
-      parserOptions: {
-        // project: ['./webview-ui/tsconfig.json'], // Path to your webview's tsconfig.json
-        tsconfigRootDir: import.meta.dirname,
-        ecmaFeatures: {
-          jsx: true, // Enable JSX parsing
-        },
-      },
-    },
-    // Define plugins specific to the React environment
-    plugins: {
-      react, // General React rules
-      'react-hooks': reactHooks, // Rules for React Hooks
-      'react-refresh': reactRefresh, // Rules for React Fast Refresh
-    },
-    // Specific rules for your React/TypeScript files
-    rules: {
-      // General React rules (e.g., props validation, accessibility)
-      ...react.configs.recommended.rules,
-      ...react.configs['jsx-runtime'].rules, // Use this for React 17+ with new JSX transform
-
-      // React Hooks specific rules
-      ...reactHooks.configs.recommended.rules,
-
-      // React Refresh specific rule
-      'react-refresh/only-export-components': [
-        'warn',
-        { allowConstantExport: true },
-      ],
-
-      // Override or add other React/TypeScript specific rules
-      'react/prop-types': 'off', // Often not needed with TypeScript
-      'react/react-in-jsx-scope': 'off', // Not needed for React 17+ with new JSX transform
-      '@typescript-eslint/explicit-function-return-type': 'off', // Often too verbose in React components
-      'semi': 'off', // Let Prettier handle semicolons
-    },
-    settings: {
-      react: {
-        version: 'detect', // Automatically detect the React version
-      },
-    },
-  },
 ]);
