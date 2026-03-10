@@ -1,91 +1,172 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <title>Submitty Courses</title>
     <style>
-        body {
-            font-family: var(--vscode-font-family);
-            padding: 10px;
-            color: var(--vscode-editor-foreground);
-            background-color: var(--vscode-editor-background);
-        }
-        .accordion {
-            color: var(--vscode-editor-foreground);
-            cursor: pointer;
-            padding: 10px;
-            width: 100%;
-            border: none;
-            text-align: left;
-            outline: none;
-            font-size: 15px;
-            transition: 0.4s;
-            background-color: transparent;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .accordion::after {
-            content: '\2304';
-            font-size: 12px;
-            color: var(--vscode-editor-foreground);
-            transition: transform 0.4s;
-        }
-        .active::after {
-            transform: rotate(180deg);
-        }
-        .panel {
-            padding: 0 18px;
-            display: none;
-            background-color: transparent;
-            overflow: hidden;
-        }
-        section {
-            margin-bottom: 20px;
-        }
-        .grade-button {
-            margin-left: 10px;
-            padding: 5px 10px;
-            font-size: 14px;
-            cursor: pointer;
-            background-color: var(--vscode-button-background);
-            color: var(--vscode-button-foreground);
-            border: none;
-            border-radius: 3px;
-        }
+      body {
+        font-family: var(--vscode-font-family);
+        padding: 10px;
+        color: var(--vscode-editor-foreground);
+        background-color: var(--vscode-editor-background);
+      }
+      .accordion {
+        color: var(--vscode-editor-foreground);
+        cursor: pointer;
+        padding: 10px;
+        width: 100%;
+        border: none;
+        text-align: left;
+        outline: none;
+        font-size: 15px;
+        transition: 0.4s;
+        background-color: transparent;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .accordion::after {
+        content: '\2304';
+        font-size: 12px;
+        color: var(--vscode-editor-foreground);
+        transition: transform 0.4s;
+      }
+      .active::after {
+        transform: rotate(180deg);
+      }
+      .panel {
+        padding: 0 18px;
+        display: none;
+        background-color: transparent;
+        overflow: hidden;
+      }
+      section {
+        margin-bottom: 20px;
+      }
+      .grade-button {
+        margin-left: 10px;
+        padding: 5px 10px;
+        font-size: 14px;
+        cursor: pointer;
+        background-color: var(--vscode-button-background);
+        color: var(--vscode-button-foreground);
+        border: none;
+        border-radius: 3px;
+      }
+      .homework-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--vscode-widget-border);
+      }
+      .homework-item:last-child {
+        border-bottom: none;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <section>
-        <h3>Courses</h3>
-        <div id="unarchivedCourses"></div>
+      <h3>Courses</h3>
+      <div id="unarchivedCourses"></div>
     </section>
 
     <script>
-        const vscode = acquireVsCodeApi();
+      const vscode = acquireVsCodeApi();
 
-        window.addEventListener('message', (event) => {
-            const { command, data } = event.data;
-            if (command === 'displayCourses') {
-                document.getElementById('unarchivedCourses').innerHTML = data.unarchivedHtml;
-                initializeAccordion();
-            }
+      function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      /** Normalize payload: accept data.courses (with gradables) or data.unarchived_courses (raw API). */
+      function normalizeCourses(data) {
+        const raw = data.courses || data.unarchived_courses || [];
+        return raw.map(function (c) {
+          return {
+            semester: c.semester,
+            title: c.title,
+            display_name: c.display_name || c.title || '',
+            gradables: Array.isArray(c.gradables) ? c.gradables : [],
+          };
         });
+      }
 
-        function initializeAccordion() {
-            const accordions = document.getElementsByClassName('accordion');
-            for (let i = 0; i < accordions.length; i++) {
-                accordions[i].addEventListener('click', function() {
-                    this.classList.toggle('active');
-                    const panel = this.nextElementSibling;
-                    if (panel.style.display === 'block') {
-                        panel.style.display = 'none';
-                    } else {
-                        panel.style.display = 'block';
-                    }
+      window.addEventListener('message', event => {
+        const { command, data } = event.data;
+        if (command === 'displayCourses') {
+          const courses = normalizeCourses(data || {});
+          const container = document.getElementById('unarchivedCourses');
+          if (courses.length === 0) {
+            container.innerHTML = '<p>No courses found.</p>';
+          } else {
+            container.innerHTML = courses
+              .map(function (course) {
+                const homeworkHtml =
+                  course.gradables && course.gradables.length
+                    ? course.gradables
+                        .map(function (g) {
+                          var id = g.id || g.gradeable_id || '';
+                          var title = g.title || g.name || id || 'Homework';
+                          return (
+                            '<div class="homework-item">' +
+                            '<span>' +
+                            escapeHtml(title) +
+                            '</span>' +
+                            '<button class="grade-button" data-term="' +
+                            escapeHtml(course.semester) +
+                            '" data-course-id="' +
+                            escapeHtml(course.title) +
+                            '" data-gradeable-id="' +
+                            escapeHtml(id) +
+                            '">Grade</button>' +
+                            '</div>'
+                          );
+                        })
+                        .join('')
+                    : '<p>No homework in this course.</p>';
+                return (
+                  '<button class="accordion">' +
+                  escapeHtml(course.display_name) +
+                  '</button>' +
+                  '<div class="panel">' +
+                  homeworkHtml +
+                  '</div>'
+                );
+              })
+              .join('');
+            initializeAccordion();
+            container.querySelectorAll('.grade-button').forEach(function (btn) {
+              btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                vscode.postMessage({
+                  command: 'grade',
+                  term: this.dataset.term,
+                  courseId: this.dataset.courseId,
+                  gradeableId: this.dataset.gradeableId,
                 });
-            }
+              });
+            });
+          }
         }
+      });
+
+      function initializeAccordion() {
+        const accordions = document.getElementsByClassName('accordion');
+        for (let i = 0; i < accordions.length; i++) {
+          accordions[i].addEventListener('click', function () {
+            this.classList.toggle('active');
+            const panel = this.nextElementSibling;
+            if (panel.style.display === 'block') {
+              panel.style.display = 'none';
+            } else {
+              panel.style.display = 'block';
+            }
+          });
+        }
+      }
     </script>
-</body>
+  </body>
 </html>

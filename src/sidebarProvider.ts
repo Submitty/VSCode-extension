@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { getClassesHtml } from './sidebarContent';
 import { ApiService } from './services/apiService';
 import { AuthService } from './services/authService';
+import type { TestingService } from './services/testingService';
 
 export class SidebarProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
@@ -9,7 +10,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     private authService: AuthService;
     private isInitialized: boolean = false;
 
-    constructor(private readonly context: vscode.ExtensionContext) {
+    constructor(
+        private readonly context: vscode.ExtensionContext,
+        private readonly testingService?: TestingService
+    ) {
         this.apiService = ApiService.getInstance(this.context, "");
         this.authService = AuthService.getInstance(this.context);
     }
@@ -56,7 +60,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         );
     }
 
-    private async loadCourses() {
+    private async loadCourses(): Promise<void> {
         if (!this._view) {
             return;
         }
@@ -87,7 +91,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 }
                 break;
             case 'grade':
-                await this.handleGrade(message.hw, view);
+                await this.handleGrade(message.term, message.courseId, message.gradeableId, view);
                 break;
             default:
                 vscode.window.showWarningMessage(`Unknown command: ${message.command}`);
@@ -95,30 +99,32 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async fetchAndDisplayCourses(token: string, view: vscode.WebviewView) {
+    private async fetchAndDisplayCourses(token: string, view: vscode.WebviewView): Promise<void> {
         try {
             const courses = await this.apiService.fetchCourses(token);
+            const unarchived = courses.data.unarchived_courses;
 
-            console.log("courses", courses);
-
-
-            const unarchivedHtml = courses.data.unarchived_courses.length
-                ? courses.data.unarchived_courses.map((course) => `
-                    <button class="accordion">${sanitize(course.display_name || course.title || 'Untitled Course')}</button>
-                    <div class="panel">
-                        <p>HW 1 <button class="grade-button" onclick="vscode.postMessage({ command: 'grade', hw: 'HW 1' })">Grade</button></p>
-                        <p>HW 2 <button class="grade-button" onclick="">Grade</button></p>
-                        <p>HW 3 <button class="grade-button" onclick="">Grade</button></p>
-                    </div>
-                `).join('')
-                : '<p>No courses found.</p>';
-
+            const coursesWithGradables = await Promise.all(
+                unarchived.map(async (course) => {
+                    let gradables: { id: string; title: string }[] = [];
+                    try {
+                        const gradableResponse = await this.apiService.fetchGradables(course.title, course.semester);
+                        gradables = (gradableResponse.data || []).map((g) => ({ id: g.id, title: g.title || g.id }));
+                    } catch (e) {
+                        console.warn(`Failed to fetch gradables for ${course.title}:`, e);
+                    }
+                    return {
+                        semester: course.semester,
+                        title: course.title,
+                        display_name: course.display_name || course.title,
+                        gradables,
+                    };
+                })
+            );
 
             view.webview.postMessage({
                 command: 'displayCourses',
-                data: {
-                    unarchivedHtml,
-                }
+                data: { courses: coursesWithGradables },
             });
         } catch (error: any) {
             vscode.window.showErrorMessage(`Failed to fetch courses: ${error.message}`);
@@ -126,16 +132,18 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async handleGrade(hw: string, view: vscode.WebviewView) {
+    private async handleGrade(term: string, courseId: string, gradeableId: string, view: vscode.WebviewView): Promise<void> {
         try {
-            const gradeDetails = await this.apiService.fetchGradeDetails(hw);
-            const previousAttempts = await this.apiService.fetchPreviousAttempts(hw); // Fetch previous attempts
-
+            this.testingService?.addGradeable(term, courseId, gradeableId, gradeableId);
+            const gradeDetails = await this.apiService.fetchGradeDetails(term, courseId, gradeableId);
+            const previousAttempts = await this.apiService.fetchPreviousAttempts(term, courseId, gradeableId); // Fetch previous attempts
 
             view.webview.postMessage({
                 command: 'displayGrade',
                 data: {
-                    hw,
+                    term,
+                    courseId,
+                    gradeableId,
                     gradeDetails,
                     previousAttempts, // Include previous attempts
                 }
@@ -143,7 +151,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
             // Send message to PanelProvider
             vscode.commands.executeCommand('extension.showGradePanel', {
-                hw,
+                term,
+                courseId,
+                gradeableId,
                 gradeDetails,
                 previousAttempts, // Include previous attempts
             });
@@ -176,6 +186,3 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
 }
 
-function sanitize(str: string): string {
-    return str.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
