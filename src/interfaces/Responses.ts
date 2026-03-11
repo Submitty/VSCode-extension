@@ -17,4 +17,6 @@ export type LoginResponse = ApiResponse<{
     token: string;
 }>;
 
-export type GradableResponse = ApiResponse<Gradable[]>;
+export type GradableResponse = ApiResponse<{
+    [key: string]: Gradable;
+}>;

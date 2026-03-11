@@ -3,6 +3,7 @@ import { getClassesHtml } from './sidebarContent';
 import { ApiService } from './services/apiService';
 import { AuthService } from './services/authService';
 import type { TestingService } from './services/testingService';
+import { Gradable } from './interfaces/Gradables';
 
 export class SidebarProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
@@ -109,7 +110,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     let gradables: { id: string; title: string }[] = [];
                     try {
                         const gradableResponse = await this.apiService.fetchGradables(course.title, course.semester);
-                        gradables = (gradableResponse.data || []).map((g) => ({ id: g.id, title: g.title || g.id }));
+                        gradables = Object.values(gradableResponse.data || {}).map((g: Gradable) => ({ id: g.id, title: g.title || g.id }));
                     } catch (e) {
                         console.warn(`Failed to fetch gradables for ${course.title}:`, e);
                     }
@@ -135,8 +136,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     private async handleGrade(term: string, courseId: string, gradeableId: string, view: vscode.WebviewView): Promise<void> {
         try {
             this.testingService?.addGradeable(term, courseId, gradeableId, gradeableId);
-            const gradeDetails = await this.apiService.fetchGradeDetails(term, courseId, gradeableId);
-            const previousAttempts = await this.apiService.fetchPreviousAttempts(term, courseId, gradeableId); // Fetch previous attempts
+
+            view.webview.postMessage({ command: 'gradeStarted', message: 'Submitting for grading...' });
+            await this.apiService.submitVCSGradable(term, courseId, gradeableId);
+
+            view.webview.postMessage({ command: 'gradeStarted', message: 'Grading in progress. Polling for results...' });
+            const gradeDetails = await this.apiService.pollGradeDetailsUntilComplete(term, courseId, gradeableId);
+
+            const previousAttempts = await this.apiService.fetchPreviousAttempts(term, courseId, gradeableId);
 
             view.webview.postMessage({
                 command: 'displayGrade',
@@ -145,21 +152,22 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     courseId,
                     gradeableId,
                     gradeDetails,
-                    previousAttempts, // Include previous attempts
+                    previousAttempts,
                 }
             });
 
-            // Send message to PanelProvider
             vscode.commands.executeCommand('extension.showGradePanel', {
                 term,
                 courseId,
                 gradeableId,
                 gradeDetails,
-                previousAttempts, // Include previous attempts
+                previousAttempts,
             });
+
+            this.testingService?.runGradeableWithResult(term, courseId, gradeableId, gradeableId, gradeDetails);
         } catch (error: any) {
-            vscode.window.showErrorMessage(`Failed to fetch grade details: ${error.message}`);
-            view.webview.postMessage({ command: 'error', message: `Failed to fetch grade details: ${error.message}` });
+            vscode.window.showErrorMessage(`Failed to grade: ${error.message}`);
+            view.webview.postMessage({ command: 'error', message: `Failed to grade: ${error.message}` });
         }
     }
 
