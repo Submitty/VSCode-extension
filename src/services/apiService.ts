@@ -117,7 +117,7 @@ export class ApiService {
             Array.isArray(res.data.test_cases) &&
             res.data.test_cases.length > 0;
 
-        for (;;) {
+        for (; ;) {
             if (token?.isCancellationRequested) {
                 throw new Error('Cancelled');
             }
