@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { getClassesHtml } from './sidebarContent';
 import { ApiService } from './services/apiService';
 import { AuthService } from './services/authService';
+import { GitService } from './services/gitService';
 import type { TestingService } from './services/testingService';
 import { Gradable } from './interfaces/Gradables';
 
@@ -13,7 +14,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
     constructor(
         private readonly context: vscode.ExtensionContext,
-        private readonly testingService?: TestingService
+        private readonly testingService?: TestingService,
+        private readonly gitService?: GitService
     ) {
         this.apiService = ApiService.getInstance(this.context, "");
         this.authService = AuthService.getInstance(this.context);
@@ -23,7 +25,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         webviewView: vscode.WebviewView,
         _context: vscode.WebviewViewResolveContext,
         _token: vscode.CancellationToken
-    ) {
+    ): Promise<void> {
         this._view = webviewView;
 
         webviewView.webview.options = {
@@ -83,7 +85,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async handleMessage(message: any, view: vscode.WebviewView) {
+    private async handleMessage(message: any, view: vscode.WebviewView): Promise<void> {
         switch (message.command) {
             case 'fetchAndDisplayCourses':
                 const token = await this.authService.getAuthorizationToken();
@@ -136,6 +138,17 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     private async handleGrade(term: string, courseId: string, gradeableId: string, view: vscode.WebviewView): Promise<void> {
         try {
             this.testingService?.addGradeable(term, courseId, gradeableId, gradeableId);
+
+            if (this.gitService) {
+                view.webview.postMessage({ command: 'gradeStarted', message: 'Staging and committing...' });
+                const commitMessage = new Date().toLocaleString(undefined, {
+                    dateStyle: 'short',
+                    timeStyle: 'medium',
+                });
+                await this.gitService.commit(commitMessage, { all: true });
+                view.webview.postMessage({ command: 'gradeStarted', message: 'Pushing...' });
+                await this.gitService.push();
+            }
 
             view.webview.postMessage({ command: 'gradeStarted', message: 'Submitting for grading...' });
             await this.apiService.submitVCSGradable(term, courseId, gradeableId);
