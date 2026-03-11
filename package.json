@@ -6,6 +6,9 @@
   "engines": {
     "vscode": "^1.95.0"
   },
+  "extensionDependencies": [
+    "vscode.git"
+  ],
   "categories": [
     "Other"
   ],
@@ -42,16 +45,9 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "reactWebview",
+          "id": "submittySidebar",
           "title": "Submitty",
           "icon": "media/duck.png"
-        }
-      ],
-      "panel": [
-        {
-          "id": "reactWebview",
-          "title": "React Webview",
-          "icon": "$(file-code)"
         }
       ]
     },
@@ -62,13 +58,6 @@
           "id": "submittyWebview",
           "name": "Sidebar",
           "icon": "media/duck.png"
-        }
-      ],
-      "reactWebview": [
-        {
-          "type": "webview",
-          "id": "reactWebview",
-          "name": "React Webview"
         }
       ]
     }
@@ -83,9 +72,7 @@
     "lint:fix": "eslint --fix .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vscode-test",
-    "build:webview-ui": "cd webview-ui && npm install && npm run build",
-    "watch:webview-ui": "cd webview-ui && npm run dev"
+    "test": "vscode-test"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -96,9 +83,6 @@
     "@vscode/test-electron": "^2.4.0",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
     "prettier": "^3.3.3",
     "rimraf": "^3.0.2",

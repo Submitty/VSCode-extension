@@ -1,9 +1,0 @@
-curl -X POST \
-  https://kistso.cs.wallawalla.edu/api/token \
-  -F user_id=testtest \
-  -F password=Computers4fun!
-
-
-curl --request GET \
-  --url  https://kistso.cs.wallawalla.edu/api/courses \
-  --header 'Authorization: token'
