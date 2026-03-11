@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { ApiService } from './apiService';
-import type { AutoGraderDetailsData, TestCase } from '../interfaces/AutoGraderDetails';
+import type { AutoGraderDetails, AutoGraderDetailsData, TestCase, Autocheck } from '../interfaces/AutoGraderDetails';
 
 const CONTROLLER_ID = 'submittyAutograder';
 const CONTROLLER_LABEL = 'Submitty Autograder';
@@ -56,8 +56,76 @@ export class TestingService {
         return item;
     }
 
+    /**
+     * Run a single gradeable in the Test Explorer using an already-fetched autograder result.
+     * Used when the user clicks "Grade" in the sidebar: submit → poll → then report here.
+     */
+    runGradeableWithResult(term: string, courseId: string, gradeableId: string, label: string, result: AutoGraderDetails): void {
+        const item = this.addGradeable(term, courseId, gradeableId, label);
+        this.syncTestCaseChildren(item, result.data);
+
+        const run = this.controller.createTestRun(new vscode.TestRunRequest([item]));
+        run.started(item);
+        run.appendOutput(`Autograder completed for ${item.label}.\r\n`);
+        this.reportGradeableResult(run, item, result.data);
+        run.end();
+    }
+
     private getGradeableMeta(item: vscode.TestItem): GradeableMeta | undefined {
         return this.gradeableMeta.get(item);
+    }
+
+    /**
+     * Convert HTML from autograder actual/expected into plain text for the Test Explorer diff.
+     * Strips tags and decodes common entities so the diff view is readable.
+     */
+    private stripHtml(html: string): string {
+        if (!html || typeof html !== 'string') {
+            return '';
+        }
+        const text = html
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/div>/gi, '\n')
+            .replace(/<\/p>/gi, '\n')
+            .replace(/<[^>]+>/g, '')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&amp;/g, '&')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/&nbsp;/g, ' ');
+        return text.replace(/\n{3,}/g, '\n\n').trim();
+    }
+
+    private formatAutocheckOutput(autochecks: Autocheck[] | undefined, getValue: (ac: Autocheck) => string): string {
+        if (!autochecks?.length) {
+            return '';
+        }
+        const parts = autochecks.map((ac) => {
+            const value = this.stripHtml(getValue(ac));
+            if (!value) {
+                return '';
+            }
+            return `[${ac.description}]\n${value}`;
+        });
+        return parts.filter(Boolean).join('\n\n');
+    }
+
+    /**
+     * Format the messages array from all autochecks (e.g. "ERROR: ..." with type failure/warning).
+     */
+    private formatAutocheckMessages(autochecks: Autocheck[] | undefined): string {
+        if (!autochecks?.length) {
+            return '';
+        }
+        const parts = autochecks.map((ac) => {
+            const msgLines = (ac.messages ?? []).map((m) => `  • ${m.message}${m.type ? ` (${m.type})` : ''}`);
+            if (msgLines.length === 0) {
+                return '';
+            }
+            return `[${ac.description}]\n${msgLines.join('\n')}`;
+        });
+        return parts.filter(Boolean).join('\n\n');
     }
 
     private async resolveHandler(item: vscode.TestItem | undefined): Promise<void> {
@@ -94,6 +162,49 @@ export class TestingService {
                 gradeableItem.children.add(child);
             } else {
                 this.testCaseMeta.set(child, tc);
+            }
+        }
+    }
+
+    private reportGradeableResult(run: vscode.TestRun, item: vscode.TestItem, _data: AutoGraderDetailsData): void {
+        const start = Date.now();
+        let allPassed = true;
+        item.children.forEach((child) => {
+            const tc = this.testCaseMeta.get(child);
+            run.started(child);
+            if (tc) {
+                const passed = tc.points_received >= (tc.points_available ?? 0);
+                if (!passed) {
+                    allPassed = false;
+                }
+                const duration = Date.now() - start;
+                const messageParts = [tc.testcase_message, tc.details].filter(Boolean);
+                const formattedMessages = this.formatAutocheckMessages(tc.autochecks);
+                if (formattedMessages) {
+                    messageParts.push('--- Messages ---', formattedMessages);
+                }
+                const messageText = messageParts.join('\n') || 'Failed';
+                if (passed) {
+                    run.passed(child, duration);
+                } else {
+                    const msg = new vscode.TestMessage(messageText);
+                    msg.expectedOutput = this.formatAutocheckOutput(tc.autochecks, (ac) => ac.expected);
+                    msg.actualOutput = this.formatAutocheckOutput(tc.autochecks, (ac) => ac.actual);
+                    run.failed(child, msg, duration);
+                }
+            } else {
+                run.passed(child, 0);
+            }
+        });
+
+        if (item.children.size === 0) {
+            run.appendOutput(`No test cases in response.\r\n`);
+            run.failed(item, new vscode.TestMessage('No test cases returned.'), 0);
+        } else {
+            if (allPassed) {
+                run.passed(item, Date.now() - start);
+            } else {
+                run.failed(item, new vscode.TestMessage('Some test cases failed.'), Date.now() - start);
             }
         }
     }
@@ -137,39 +248,7 @@ export class TestingService {
                 );
                 const data = result.data;
                 this.syncTestCaseChildren(item, data);
-
-                let allPassed = true;
-                const start = Date.now();
-                item.children.forEach((child) => {
-                    const tc = this.testCaseMeta.get(child);
-                    run.started(child);
-                    if (tc) {
-                        const passed = tc.points_received >= (tc.points_available ?? 0);
-                        if (!passed) {
-                            allPassed = false;
-                        }
-                        const duration = Date.now() - start;
-                        const message = [tc.testcase_message, tc.details].filter(Boolean).join('\n') || undefined;
-                        if (passed) {
-                            run.passed(child, duration);
-                        } else {
-                            run.failed(child, new vscode.TestMessage(message || 'Failed'), duration);
-                        }
-                    } else {
-                        run.passed(child, 0);
-                    }
-                });
-
-                if (item.children.size === 0) {
-                    run.appendOutput(`No test cases in response.\r\n`);
-                    run.failed(item, new vscode.TestMessage('No test cases returned.'), 0);
-                } else {
-                    if (allPassed) {
-                        run.passed(item, Date.now() - start);
-                    } else {
-                        run.failed(item, new vscode.TestMessage('Some test cases failed.'), Date.now() - start);
-                    }
-                }
+                this.reportGradeableResult(run, item, data);
             } catch (e) {
                 const err = e instanceof Error ? e.message : String(e);
                 run.appendOutput(`Error: ${err}\r\n`);
