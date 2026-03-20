@@ -8,13 +8,13 @@ export class AuthService {
     private context: vscode.ExtensionContext;
     private apiService: ApiService;
     private static instance: AuthService;
-    constructor(context: vscode.ExtensionContext, apiBaseUrl: string = "") {
+    constructor(context: vscode.ExtensionContext, apiBaseUrl: string = '') {
         this.context = context;
-        this.apiService = ApiService.getInstance(context, "");
+        this.apiService = ApiService.getInstance(context, apiBaseUrl);
     }
 
-    async initialize() {
-        console.log("Initializing AuthService");
+    async initialize(): Promise<void> {
+        console.log('Initializing AuthService');
 
         // Get base URL from configuration
         const config = vscode.workspace.getConfiguration('submitty');
@@ -26,15 +26,15 @@ export class AuthService {
         }
 
         const token = await this.getToken();
-        console.log("Token:", token);
+        console.log('Token:', token);
         if (token) {
             // Token exists, set it on the API service
             this.apiService.setAuthorizationToken(token);
-            console.log("Token set on API service");
+            console.log('Token set on API service');
             return;
         }
 
-        console.log("No token found, prompting for credentials");
+        console.log('No token found, prompting for credentials');
 
         // If no base URL is configured, prompt for it
         if (!baseUrl) {
@@ -42,7 +42,7 @@ export class AuthService {
                 prompt: 'Enter Submitty API URL',
                 placeHolder: 'https://example.submitty.edu',
                 ignoreFocusOut: true,
-                validateInput: (value) => {
+                validateInput: value => {
                     if (!value || value.trim().length === 0) {
                         return 'URL is required';
                     }
@@ -52,7 +52,7 @@ export class AuthService {
                     } catch {
                         return 'Please enter a valid URL';
                     }
-                }
+                },
             });
 
             if (!inputUrl) {
@@ -63,7 +63,11 @@ export class AuthService {
             baseUrl = inputUrl.trim();
 
             // Save base URL to configuration
-            await config.update('baseUrl', baseUrl, vscode.ConfigurationTarget.Global);
+            await config.update(
+                'baseUrl',
+                baseUrl,
+                vscode.ConfigurationTarget.Global
+            );
 
             // Set the base URL on the API service
             this.apiService.setBaseUrl(baseUrl);
@@ -73,12 +77,12 @@ export class AuthService {
             prompt: 'Enter your Submitty username',
             placeHolder: 'Username',
             ignoreFocusOut: true,
-            validateInput: (value) => {
+            validateInput: value => {
                 if (!value || value.trim().length === 0) {
                     return 'Username is required';
                 }
                 return null;
-            }
+            },
         });
 
         if (!userId) {
@@ -91,12 +95,12 @@ export class AuthService {
             placeHolder: 'Password',
             password: true,
             ignoreFocusOut: true,
-            validateInput: (value) => {
+            validateInput: value => {
                 if (!value || value.trim().length === 0) {
                     return 'Password is required';
                 }
                 return null;
-            }
+            },
         });
 
         if (!password) {
@@ -109,20 +113,24 @@ export class AuthService {
             // Perform login
             await this.login(userId.trim(), password);
 
-            vscode.window.showInformationMessage('Successfully logged in to Submitty');
+            vscode.window.showInformationMessage(
+                'Successfully logged in to Submitty'
+            );
         } catch (error: any) {
-            vscode.window.showErrorMessage(`Login failed: ${error.message}`);
+            vscode.window.showErrorMessage(
+                `Login failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+            );
             throw error;
         }
     }
 
     // store token
-    private async storeToken(token: string) {
+    private async storeToken(token: string): Promise<void> {
         await keytar.setPassword('submittyToken', 'submittyToken', token);
     }
 
     // get token
-    private async getToken() {
+    private async getToken(): Promise<string | null> {
         return await keytar.getPassword('submittyToken', 'submittyToken');
     }
 
@@ -135,13 +143,16 @@ export class AuthService {
         const token = await this.apiService.login(userId, password);
         this.apiService.setAuthorizationToken(token);
         // store token in system keychain
-        this.storeToken(token);
+        await this.storeToken(token);
         return token;
     }
 
-    static getInstance(context: vscode.ExtensionContext, apiBaseUrl: string = ""): AuthService {
+    static getInstance(
+        context: vscode.ExtensionContext,
+        apiBaseUrl: string = ''
+    ): AuthService {
         if (!AuthService.instance) {
-            AuthService.instance = new AuthService(context);
+            AuthService.instance = new AuthService(context, apiBaseUrl);
         }
         return AuthService.instance;
     }
