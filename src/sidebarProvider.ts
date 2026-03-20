@@ -3,7 +3,6 @@ import { getClassesHtml } from './sidebarContent';
 import { ApiService } from './services/apiService';
 import { AuthService } from './services/authService';
 import { GitService } from './services/gitService';
-import type { TestingService } from './services/testingService';
 import { Gradable } from './interfaces/Gradables';
 import { TestingService } from './services/testingService';
 import { MessageCommand } from './typings/message';
@@ -295,13 +294,15 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         },
       });
 
-      this.testingService?.runGradeableWithResult(
-        term,
-        courseId,
-        gradeableId,
-        gradeableId,
-        gradeDetails
-      );
+      if (this.testingService) {
+        this.testingService.runGradeableWithResult(
+          term,
+          courseId,
+          gradeableId,
+          gradeableId,
+          gradeDetails
+        );
+      }
     } catch (error: unknown) {
       const err = error instanceof Error ? error.message : String(error);
       vscode.window.showErrorMessage(`Failed to grade: ${err}`);
