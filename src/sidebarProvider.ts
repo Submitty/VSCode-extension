@@ -5,12 +5,16 @@ import { AuthService } from './services/authService';
 import { GitService } from './services/gitService';
 import type { TestingService } from './services/testingService';
 import { Gradable } from './interfaces/Gradables';
+import { TestingService } from './services/testingService';
+import { MessageCommand } from './typings/message';
 
 export class SidebarProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
     private apiService: ApiService;
     private authService: AuthService;
     private isInitialized: boolean = false;
+    private visibilityDisposable?: vscode.Disposable;
+    private isLoadingCourses: boolean = false;
 
     constructor(
         private readonly context: vscode.ExtensionContext,
@@ -35,6 +39,15 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
         // Initially show blank screen
         webviewView.webview.html = this.getBlankHtml();
+
+        // Reload courses any time the view becomes visible again (e.g. user
+        // closes/hides the panel and comes back).
+        this.visibilityDisposable?.dispose();
+        this.visibilityDisposable = webviewView.onDidChangeVisibility(async () => {
+            if (webviewView.visible) {
+                await this.loadCourses();
+            }
+        });
 
         // Initialize authentication when sidebar is opened (only once)
         if (!this.isInitialized) {
@@ -68,6 +81,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             return;
         }
 
+        if (this.isLoadingCourses) {
+            return;
+        }
+
+        this.isLoadingCourses = true;
         try {
             const token = await this.authService.getAuthorizationToken();
             if (!token) {
@@ -79,29 +97,75 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
             // Fetch and display courses
             await this.fetchAndDisplayCourses(token, this._view);
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const err = error instanceof Error ? error.message : String(error);
             console.error('Failed to load courses:', error);
-            vscode.window.showErrorMessage(`Failed to load courses: ${error.message}`);
+            vscode.window.showErrorMessage(`Failed to load courses: ${err}`);
+        } finally {
+            this.isLoadingCourses = false;
         }
     }
 
-    private async handleMessage(message: any, view: vscode.WebviewView): Promise<void> {
-        switch (message.command) {
-            case 'fetchAndDisplayCourses':
-                const token = await this.authService.getAuthorizationToken();
-                if (token) {
-                    await this.fetchAndDisplayCourses(token, view);
+    private async handleMessage(message: unknown, view: vscode.WebviewView): Promise<void> {
+        console.log('handleMessage', message);
+        if (!message || typeof message !== 'object') {
+            return;
+        }
+        const msg = message as { command?: unknown; data?: unknown };
+        if (typeof msg.command !== 'string') {
+            return;
+        }
+
+        switch (msg.command) {
+            case MessageCommand.FETCH_AND_DISPLAY_COURSES:
+                try {
+                    const token = await this.authService.getAuthorizationToken();
+                    if (token) {
+                        await this.fetchAndDisplayCourses(token, view);
+                    }
+                } catch (error: unknown) {
+                    const err = error instanceof Error ? error.message : String(error);
+                    console.error('Failed to fetch and display courses:', error);
+                    view.webview.postMessage({
+                        command: MessageCommand.ERROR,
+                        data: { message: `Failed to fetch and display courses: ${err}` },
+                    });
                 }
                 break;
-            case 'grade':
-                await this.handleGrade(message.term, message.courseId, message.gradeableId, view);
+            case MessageCommand.GRADE:
+                try {
+                    const data = msg.data;
+                    if (!data || typeof data !== 'object') {
+                        throw new Error('Missing grade payload.');
+                    }
+                    const dataObj = data as Record<string, unknown>;
+                    const term = typeof dataObj.term === 'string' ? dataObj.term : null;
+                    const courseId = typeof dataObj.courseId === 'string' ? dataObj.courseId : null;
+                    const gradeableId = typeof dataObj.gradeableId === 'string' ? dataObj.gradeableId : null;
+
+                    if (!term || !courseId || !gradeableId) {
+                        throw new Error('Invalid grade payload.');
+                    }
+                    console.log('handleGrade', term, courseId, gradeableId);
+                    await this.handleGrade(term, courseId, gradeableId, view);
+                } catch (error: unknown) {
+                    const err = error instanceof Error ? error.message : String(error);
+                    console.error('Failed to grade:', error);
+                    view.webview.postMessage({
+                        command: MessageCommand.ERROR,
+                        data: { message: `Failed to grade: ${err}` },
+                    });
+                }
                 break;
             default:
-                vscode.window.showWarningMessage(`Unknown command: ${message.command}`);
+                vscode.window.showWarningMessage(`Unknown command: ${msg.command}`);
+                view.webview.postMessage({
+                    command: MessageCommand.ERROR,
+                    data: { message: `Unknown command: ${msg.command}` },
+                });
                 break;
         }
     }
-
     private async fetchAndDisplayCourses(token: string, view: vscode.WebviewView): Promise<void> {
         try {
             const courses = await this.apiService.fetchCourses(token);
@@ -126,12 +190,16 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             );
 
             view.webview.postMessage({
-                command: 'displayCourses',
+                command: MessageCommand.DISPLAY_COURSES,
                 data: { courses: coursesWithGradables },
             });
-        } catch (error: any) {
-            vscode.window.showErrorMessage(`Failed to fetch courses: ${error.message}`);
-            view.webview.postMessage({ command: 'error', message: `Failed to fetch courses: ${error.message}` });
+        } catch (error: unknown) {
+            const err = error instanceof Error ? error.message : String(error);
+            vscode.window.showErrorMessage(`Failed to fetch courses: ${err}`);
+            view.webview.postMessage({
+                command: MessageCommand.ERROR,
+                data: { message: `Failed to fetch courses: ${err}` },
+            });
         }
     }
 
@@ -140,26 +208,37 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             this.testingService?.addGradeable(term, courseId, gradeableId, gradeableId);
 
             if (this.gitService) {
-                view.webview.postMessage({ command: 'gradeStarted', message: 'Staging and committing...' });
+                view.webview.postMessage({ command: MessageCommand.GRADE_STARTED, data: { message: 'Staging and committing...' } });
                 const commitMessage = new Date().toLocaleString(undefined, {
                     dateStyle: 'short',
                     timeStyle: 'medium',
                 });
-                await this.gitService.commit(commitMessage, { all: true });
-                view.webview.postMessage({ command: 'gradeStarted', message: 'Pushing...' });
-                await this.gitService.push();
+                try {
+                    await this.gitService.commit(commitMessage, { all: true });
+                    view.webview.postMessage({ command: MessageCommand.GRADE_STARTED, data: { message: 'Pushing...' } });
+                    await this.gitService.push();
+                } catch (error: unknown) {
+                    const err = error instanceof Error ? error.message : String(error);
+                    if (err === 'No changes to commit.') {
+                        view.webview.postMessage({
+                            command: MessageCommand.GRADE_STARTED,
+                            data: { message: 'No changes to commit. Skipping git push.' },
+                        });
+                    } else {
+                        throw error;
+                    }
+                }
             }
 
-            view.webview.postMessage({ command: 'gradeStarted', message: 'Submitting for grading...' });
+            view.webview.postMessage({ command: MessageCommand.GRADE_STARTED, data: { message: 'Submitting for grading...' } });
             await this.apiService.submitVCSGradable(term, courseId, gradeableId);
 
-            view.webview.postMessage({ command: 'gradeStarted', message: 'Grading in progress. Polling for results...' });
+            view.webview.postMessage({ command: MessageCommand.GRADE_STARTED, data: { message: 'Grading in progress. Polling for results...' } });
             const gradeDetails = await this.apiService.pollGradeDetailsUntilComplete(term, courseId, gradeableId);
-
             const previousAttempts = await this.apiService.fetchPreviousAttempts(term, courseId, gradeableId);
 
             view.webview.postMessage({
-                command: 'displayGrade',
+                command: MessageCommand.GRADE_COMPLETED,
                 data: {
                     term,
                     courseId,
@@ -169,18 +248,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 }
             });
 
-            vscode.commands.executeCommand('extension.showGradePanel', {
-                term,
-                courseId,
-                gradeableId,
-                gradeDetails,
-                previousAttempts,
-            });
-
             this.testingService?.runGradeableWithResult(term, courseId, gradeableId, gradeableId, gradeDetails);
-        } catch (error: any) {
-            vscode.window.showErrorMessage(`Failed to grade: ${error.message}`);
-            view.webview.postMessage({ command: 'error', message: `Failed to grade: ${error.message}` });
+        } catch (error: unknown) {
+            const err = error instanceof Error ? error.message : String(error);
+            vscode.window.showErrorMessage(`Failed to grade: ${err}`);
+            view.webview.postMessage({
+                command: MessageCommand.ERROR,
+                data: { message: `Failed to grade: ${err}` },
+            });
         }
     }
 

@@ -13,7 +13,7 @@ export class AuthService {
         this.apiService = ApiService.getInstance(context, "");
     }
 
-    async initialize() {
+    async initialize(): Promise<void> {
         console.log("Initializing AuthService");
 
         // Get base URL from configuration
@@ -31,6 +31,36 @@ export class AuthService {
             // Token exists, set it on the API service
             this.apiService.setAuthorizationToken(token);
             console.log("Token set on API service");
+
+            // If baseUrl isn't configured yet, fetch it now so API calls work.
+            if (!baseUrl) {
+                const inputUrl = await vscode.window.showInputBox({
+                    prompt: 'Enter Submitty API URL',
+                    placeHolder: 'https://example.submitty.edu',
+                    ignoreFocusOut: true,
+                    validateInput: (value) => {
+                        if (!value || value.trim().length === 0) {
+                            return 'URL is required';
+                        }
+                        try {
+                            new URL(value);
+                            return null;
+                        } catch {
+                            return 'Please enter a valid URL';
+                        }
+                    },
+                });
+
+                if (!inputUrl) {
+                    return;
+                }
+
+                baseUrl = inputUrl.trim();
+
+                await config.update('baseUrl', baseUrl, vscode.ConfigurationTarget.Global);
+                this.apiService.setBaseUrl(baseUrl);
+            }
+
             return;
         }
 
@@ -110,19 +140,20 @@ export class AuthService {
             await this.login(userId.trim(), password);
 
             vscode.window.showInformationMessage('Successfully logged in to Submitty');
-        } catch (error: any) {
-            vscode.window.showErrorMessage(`Login failed: ${error.message}`);
+        } catch (error: unknown) {
+            const err = error instanceof Error ? error.message : String(error);
+            vscode.window.showErrorMessage(`Login failed: ${err}`);
             throw error;
         }
     }
 
     // store token
-    private async storeToken(token: string) {
+    private async storeToken(token: string): Promise<void> {
         await keytar.setPassword('submittyToken', 'submittyToken', token);
     }
 
     // get token
-    private async getToken() {
+    private async getToken(): Promise<string | null> {
         return await keytar.getPassword('submittyToken', 'submittyToken');
     }
 
@@ -135,7 +166,7 @@ export class AuthService {
         const token = await this.apiService.login(userId, password);
         this.apiService.setAuthorizationToken(token);
         // store token in system keychain
-        this.storeToken(token);
+        await this.storeToken(token);
         return token;
     }
 
