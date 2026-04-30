@@ -7,6 +7,7 @@ import { Gradable } from './interfaces/Gradables';
 import { TestingService } from './services/testingService';
 import { MessageCommand } from './typings/message';
 
+
 export class SidebarProvider implements vscode.WebviewViewProvider {
   private _view?: vscode.WebviewView;
   private apiService: ApiService;
@@ -226,19 +227,30 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     view: vscode.WebviewView
   ): Promise<void> {
     try {
-      this.testingService?.addGradeable(
+      const gradeableTestItem = this.testingService?.addGradeable(
         term,
         courseId,
         gradeableId,
         gradeableId
       );
+      if (gradeableTestItem) {
+        try {
+          await vscode.commands.executeCommand('workbench.view.testing.focus');
+          await vscode.commands.executeCommand(
+            'vscode.revealTestInExplorer',
+            gradeableTestItem
+          );
+        } catch (error: unknown) {
+          console.warn('Unable to focus Testing panel:', error);
+        }
+      }
 
       if (this.gitService) {
         view.webview.postMessage({
           command: MessageCommand.GRADE_STARTED,
           data: { message: 'Staging and committing...' },
         });
-        const commitMessage = new Date().toLocaleString(undefined, {
+        const commitMessage = new Date().toLocaleString('en-US', {
           dateStyle: 'short',
           timeStyle: 'medium',
         });
@@ -251,6 +263,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           await this.gitService.push();
         } catch (error: unknown) {
           const err = error instanceof Error ? error.message : String(error);
+          console.error('Failed to commit and push:', error);
           if (err === 'No changes to commit.') {
             view.webview.postMessage({
               command: MessageCommand.GRADE_STARTED,
@@ -261,22 +274,29 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           }
         }
       }
-
-      view.webview.postMessage({
-        command: MessageCommand.GRADE_STARTED,
-        data: { message: 'Submitting for grading...' },
-      });
+      
       await this.apiService.submitVCSGradable(term, courseId, gradeableId);
 
-      view.webview.postMessage({
-        command: MessageCommand.GRADE_STARTED,
-        data: { message: 'Grading in progress. Polling for results...' },
-      });
-      const gradeDetails = await this.apiService.pollGradeDetailsUntilComplete(
-        term,
-        courseId,
-        gradeableId
+      const gradeDetails = await vscode.window.withProgress(
+        {
+          title: 'Grading in progress...',
+          location: vscode.ProgressLocation.Notification,
+          cancellable: true,
+        },
+        async (progress, token) => {
+          progress.report({
+            message: 'Waiting for autograder results...',
+          });
+
+          return this.apiService.pollGradeDetailsUntilComplete(
+            term,
+            courseId,
+            gradeableId,
+            { token }
+          );
+        }
       );
+
       const previousAttempts = await this.apiService.fetchPreviousAttempts(
         term,
         courseId,
@@ -305,6 +325,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       }
     } catch (error: unknown) {
       const err = error instanceof Error ? error.message : String(error);
+      console.error('Failed to grade:', error);
       vscode.window.showErrorMessage(`Failed to grade: ${err}`);
       view.webview.postMessage({
         command: MessageCommand.ERROR,

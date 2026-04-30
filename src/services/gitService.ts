@@ -59,18 +59,17 @@ export class GitService {
       );
     }
 
-    // check to see if there are any changes to commit
-    const status = (await repo.status()) as unknown as {
-      modified: unknown[];
-      untracked: unknown[];
-      deleted: unknown[];
-    };
+    console.log(repo);
 
-    if (
-      status.modified.length === 0 &&
-      status.untracked.length === 0 &&
-      status.deleted.length === 0
-    ) {
+    // Refresh repository state before checking tracked/untracked changes.
+    await repo.status();
+
+    const hasChanges =
+      repo.state.indexChanges.length > 0 ||
+      repo.state.workingTreeChanges.length > 0 ||
+      repo.state.untrackedChanges.length > 0;
+
+    if (!hasChanges) {
       throw new Error('No changes to commit.');
     }
     await repo.commit(message, options);

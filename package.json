@@ -56,7 +56,7 @@
         {
           "type": "webview",
           "id": "submittyWebview",
-          "name": "Sidebar",
+          "name": "Submitty",
           "icon": "media/duck.png"
         }
       ]
