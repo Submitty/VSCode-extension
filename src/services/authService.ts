@@ -10,11 +10,10 @@ export class AuthService {
   private static instance: AuthService;
   constructor(context: vscode.ExtensionContext, apiBaseUrl: string = '') {
     this.context = context;
-    this.apiService = ApiService.getInstance(context, '');
+    this.apiService = ApiService.getInstance(context, apiBaseUrl);
   }
 
   async initialize(): Promise<void> {
-
     // Get base URL from configuration
     const config = vscode.workspace.getConfiguration('submitty');
     let baseUrl = config.get<string>('baseUrl', '');
@@ -180,7 +179,7 @@ export class AuthService {
     apiBaseUrl: string = ''
   ): AuthService {
     if (!AuthService.instance) {
-      AuthService.instance = new AuthService(context);
+      AuthService.instance = new AuthService(context, apiBaseUrl);
     }
     return AuthService.instance;
   }

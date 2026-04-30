@@ -7,7 +7,6 @@ import { Gradable } from './interfaces/Gradables';
 import { TestingService } from './services/testingService';
 import { MessageCommand } from './typings/message';
 
-
 export class SidebarProvider implements vscode.WebviewViewProvider {
   private _view?: vscode.WebviewView;
   private apiService: ApiService;

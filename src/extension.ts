@@ -5,7 +5,6 @@ import { TestingService } from './services/testingService';
 import { GitService } from './services/gitService';
 import { AuthService } from './services/authService';
 import { CourseRepoResolver } from './services/courseRepoResolver';
-import type { Gradable } from './interfaces/Gradables';
 
 export function activate(context: vscode.ExtensionContext): void {
   const apiService = ApiService.getInstance(context, '');
@@ -61,4 +60,4 @@ export function activate(context: vscode.ExtensionContext): void {
   })();
 }
 
-export function deactivate() {}
+export function deactivate(): void {}
