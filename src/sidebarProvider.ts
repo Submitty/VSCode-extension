@@ -112,7 +112,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     message: unknown,
     view: vscode.WebviewView
   ): Promise<void> {
-    console.log('handleMessage', message);
     if (!message || typeof message !== 'object') {
       return;
     }
@@ -155,7 +154,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           if (!term || !courseId || !gradeableId) {
             throw new Error('Invalid grade payload.');
           }
-          console.log('handleGrade', term, courseId, gradeableId);
           await this.handleGrade(term, courseId, gradeableId, view);
         } catch (error: unknown) {
           const err = error instanceof Error ? error.message : String(error);
@@ -274,7 +272,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           }
         }
       }
-      
+
       await this.apiService.submitVCSGradable(term, courseId, gradeableId);
 
       const gradeDetails = await vscode.window.withProgress(

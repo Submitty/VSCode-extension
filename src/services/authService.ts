@@ -14,7 +14,6 @@ export class AuthService {
   }
 
   async initialize(): Promise<void> {
-    console.log('Initializing AuthService');
 
     // Get base URL from configuration
     const config = vscode.workspace.getConfiguration('submitty');
@@ -26,11 +25,9 @@ export class AuthService {
     }
 
     const token = await this.getToken();
-    console.log('Token:', token);
     if (token) {
       // Token exists, set it on the API service
       this.apiService.setAuthorizationToken(token);
-      console.log('Token set on API service');
 
       // If baseUrl isn't configured yet, fetch it now so API calls work.
       if (!baseUrl) {
@@ -67,8 +64,6 @@ export class AuthService {
 
       return;
     }
-
-    console.log('No token found, prompting for credentials');
 
     // If no base URL is configured, prompt for it
     if (!baseUrl) {
