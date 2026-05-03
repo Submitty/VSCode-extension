@@ -65,7 +65,9 @@ export class ApiService {
       const token: string = response.data.data.token;
       return token;
     } catch (error: unknown) {
-      throw new Error(getErrorMessage(error, 'Login failed.'));
+      throw new Error(getErrorMessage(error, 'Login failed.'), {
+        cause: error,
+      });
     }
   }
 
@@ -74,7 +76,9 @@ export class ApiService {
       const response = await this.client.get<any>('/api/me');
       return response.data;
     } catch (error: unknown) {
-      throw new Error(getErrorMessage(error, 'Failed to fetch me.'));
+      throw new Error(getErrorMessage(error, 'Failed to fetch me.'), {
+        cause: error,
+      });
     }
   }
 
@@ -87,7 +91,9 @@ export class ApiService {
       return response.data;
     } catch (error: unknown) {
       console.error('Error fetching courses:', error);
-      throw new Error(getErrorMessage(error, 'Failed to fetch courses.'));
+      throw new Error(getErrorMessage(error, 'Failed to fetch courses.'), {
+        cause: error,
+      });
     }
   }
 
@@ -101,7 +107,9 @@ export class ApiService {
       return response.data;
     } catch (error: unknown) {
       console.error('Error fetching gradables:', error);
-      throw new Error(getErrorMessage(error, 'Failed to fetch gradables.'));
+      throw new Error(getErrorMessage(error, 'Failed to fetch gradables.'), {
+        cause: error,
+      });
     }
   }
 
@@ -120,7 +128,10 @@ export class ApiService {
       return response.data;
     } catch (error: unknown) {
       console.error('Error fetching grade details:', error);
-      throw new Error(getErrorMessage(error, 'Failed to fetch grade details.'));
+      throw new Error(
+        getErrorMessage(error, 'Failed to fetch grade details.'),
+        { cause: error }
+      );
     }
   }
 
@@ -178,8 +189,10 @@ export class ApiService {
       const response = await this.client.post<any>(url);
       return response.data;
     } catch (error: unknown) {
-      console.error('Error submitt`ing VCS gradable:', error);
-      throw new Error(getErrorMessage(error, 'Failed to submit VCS gradable.'));
+      console.error('Error submitting VCS gradable:', error);
+      throw new Error(getErrorMessage(error, 'Failed to submit VCS gradable.'), {
+        cause: error,
+      });
     }
   }
 
@@ -198,7 +211,8 @@ export class ApiService {
     } catch (error: unknown) {
       console.error('Error fetching previous attempts:', error);
       throw new Error(
-        getErrorMessage(error, 'Failed to fetch previous attempts.')
+        getErrorMessage(error, 'Failed to fetch previous attempts.'),
+        { cause: error }
       );
     }
   }

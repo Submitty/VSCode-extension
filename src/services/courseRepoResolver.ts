@@ -71,9 +71,12 @@ function extractGitRemoteUrlsFromConfig(gitConfigText: string): string[] {
   //   [remote "origin"]
   //     url = https://example/.../term/courseId/...
   const urlRegex = /^\s*url\s*=\s*(.+)\s*$/gim;
-  let match: RegExpExecArray | null = null;
 
-  while ((match = urlRegex.exec(gitConfigText))) {
+  for (
+    let match = urlRegex.exec(gitConfigText);
+    match !== null;
+    match = urlRegex.exec(gitConfigText)
+  ) {
     const rawUrl = match[1]?.trim();
     if (rawUrl) {
       urls.push(rawUrl);
