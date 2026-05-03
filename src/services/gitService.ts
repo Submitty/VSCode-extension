@@ -59,8 +59,6 @@ export class GitService {
       );
     }
 
-    console.log(repo);
-
     // Refresh repository state before checking tracked/untracked changes.
     await repo.status();
 
