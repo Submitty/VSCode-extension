@@ -37,18 +37,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         vscode.Uri.joinPath(this.context.extensionUri, 'src', 'webview'),
       ],
     };
-    webviewView.webview.options = {
-      enableScripts: true,
-      localResourceRoots: [
-        vscode.Uri.joinPath(this.context.extensionUri, 'src', 'webview'),
-      ],
-    };
 
-    // Initially show blank screen
     webviewView.webview.html = this.getBlankHtml();
 
-    // Reload courses any time the view becomes visible again (e.g. user
-    // closes/hides the panel and comes back).
     this.visibilityDisposable?.dispose();
     this.visibilityDisposable = webviewView.onDidChangeVisibility(async () => {
       if (webviewView.visible) {
@@ -56,48 +47,18 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       }
     });
 
-    // Initialize authentication when sidebar is opened (only once)
     if (!this.isInitialized) {
       this.isInitialized = true;
       try {
         await this.authService.initialize();
-    // Initialize authentication when sidebar is opened (only once)
-    if (!this.isInitialized) {
-      this.isInitialized = true;
-      try {
-        await this.authService.initialize();
-
-        // After authentication, fetch and display courses
         await this.loadCourses();
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Authentication initialization failed:', error);
-        // Error is already shown to user in authService
       }
     } else {
-      // If already initialized, just load courses
-      await this.loadCourses();
-    }
-        // After authentication, fetch and display courses
-        await this.loadCourses();
-      } catch (error: any) {
-        console.error('Authentication initialization failed:', error);
-        // Error is already shown to user in authService
-      }
-    } else {
-      // If already initialized, just load courses
       await this.loadCourses();
     }
 
-    // Handle messages from the webview
-    webviewView.webview.onDidReceiveMessage(
-      async message => {
-        await this.handleMessage(message, webviewView);
-      },
-      undefined,
-      this.context.subscriptions
-    );
-  }
-    // Handle messages from the webview
     webviewView.webview.onDidReceiveMessage(
       async message => {
         await this.handleMessage(message, webviewView);
@@ -108,15 +69,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   }
 
   private async loadCourses(): Promise<void> {
-    if (!this._view) {
-      return;
-    }
-  private async loadCourses(): Promise<void> {
-    if (!this._view) {
-      return;
-    }
-
-    if (this.isLoadingCourses) {
+    if (!this._view || this.isLoadingCourses) {
       return;
     }
 
@@ -127,12 +80,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         return;
       }
 
-      // Show classes HTML
       this._view.webview.html = getClassesHtml(this.context);
-      // Show classes HTML
-      this._view.webview.html = getClassesHtml(this.context);
-
-      // Fetch and display courses
       await this.fetchAndDisplayCourses(token, this._view);
     } catch (error: unknown) {
       const err = error instanceof Error ? error.message : String(error);
@@ -205,9 +153,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           command: MessageCommand.ERROR,
           data: { message: `Unknown command: ${msg.command}` },
         });
-        break;
     }
   }
+
   private async fetchAndDisplayCourses(
     token: string,
     view: vscode.WebviewView
@@ -369,8 +317,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
   private getBlankHtml(): string {
     return `
-  private getBlankHtml(): string {
-    return `
             <!DOCTYPE html>
             <html lang="en">
             <head>
@@ -389,6 +335,5 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             </body>
             </html>
         `;
-  }
   }
 }

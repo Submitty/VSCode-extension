@@ -28,15 +28,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
 export class ApiService {
   private client: ApiClient;
   private static instance: ApiService;
-  private client: ApiClient;
-  private static instance: ApiService;
 
-  constructor(
-    private context: vscode.ExtensionContext,
-    apiBaseUrl: string
-  ) {
-    this.client = new ApiClient(apiBaseUrl);
-  }
   constructor(
     private context: vscode.ExtensionContext,
     apiBaseUrl: string
@@ -54,21 +46,6 @@ export class ApiService {
     this.client.setBaseURL(baseUrl);
   }
 
-  /**
-   * Login to the Submitty API
-   */
-  async login(userId: string, password: string): Promise<string> {
-    try {
-      const response = await this.client.post<LoginResponse>(
-        '/api/token',
-        {
-          user_id: userId,
-          password: password,
-        },
-        {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        }
-      );
   /**
    * Login to the Submitty API
    */
@@ -178,31 +155,7 @@ export class ApiService {
     const timeoutMs = options?.timeoutMs ?? 300000;
     const token = options?.token;
     const deadline = timeoutMs > 0 ? Date.now() + timeoutMs : 0;
-  /**
-   * Poll fetchGradeDetails until autograding_complete is true and test_cases has data.
-   * @param intervalMs Delay between requests (default 2000)
-   * @param timeoutMs Stop after this many ms (default 300000 = 5 min); 0 = no timeout
-   * @returns The final AutoGraderDetails with complete data
-   */
-  async pollGradeDetailsUntilComplete(
-    term: string,
-    courseId: string,
-    gradeableId: string,
-    options?: {
-      intervalMs?: number;
-      timeoutMs?: number;
-      token?: vscode.CancellationToken;
-    }
-  ): Promise<AutoGraderDetails> {
-    const intervalMs = options?.intervalMs ?? 2000;
-    const timeoutMs = options?.timeoutMs ?? 300000;
-    const token = options?.token;
-    const deadline = timeoutMs > 0 ? Date.now() + timeoutMs : 0;
 
-    const isComplete = (res: AutoGraderDetails): boolean =>
-      res?.data?.autograding_complete === true &&
-      Array.isArray(res.data.test_cases) &&
-      res.data.test_cases.length > 0;
     const isComplete = (res: AutoGraderDetails): boolean =>
       res?.data?.autograding_complete === true &&
       Array.isArray(res.data.test_cases) &&
@@ -215,26 +168,12 @@ export class ApiService {
       if (deadline > 0 && Date.now() >= deadline) {
         throw new Error('Autograding did not complete within the timeout.');
       }
-    for (;;) {
-      if (token?.isCancellationRequested) {
-        throw new Error('Cancelled');
-      }
-      if (deadline > 0 && Date.now() >= deadline) {
-        throw new Error('Autograding did not complete within the timeout.');
-      }
 
       const result = await this.fetchGradeDetails(term, courseId, gradeableId);
       if (isComplete(result)) {
         return result;
       }
-      const result = await this.fetchGradeDetails(term, courseId, gradeableId);
-      if (isComplete(result)) {
-        return result;
-      }
 
-      await new Promise(r => setTimeout(r, intervalMs));
-    }
-  }
       await new Promise(r => setTimeout(r, intervalMs));
     }
   }
@@ -251,9 +190,12 @@ export class ApiService {
       return response.data;
     } catch (error: unknown) {
       console.error('Error submitting VCS gradable:', error);
-      throw new Error(getErrorMessage(error, 'Failed to submit VCS gradable.'), {
-        cause: error,
-      });
+      throw new Error(
+        getErrorMessage(error, 'Failed to submit VCS gradable.'),
+        {
+          cause: error,
+        }
+      );
     }
   }
 
@@ -287,14 +229,4 @@ export class ApiService {
     }
     return ApiService.instance;
   }
-  static getInstance(
-    context: vscode.ExtensionContext,
-    apiBaseUrl: string
-  ): ApiService {
-    if (!ApiService.instance) {
-      ApiService.instance = new ApiService(context, apiBaseUrl);
-    }
-    return ApiService.instance;
-  }
 }
-
