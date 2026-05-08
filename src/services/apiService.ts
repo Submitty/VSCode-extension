@@ -2,13 +2,28 @@
 
 import * as vscode from 'vscode';
 import { ApiClient } from './apiClient';
-
 import {
   CourseResponse,
   LoginResponse,
   GradableResponse,
 } from '../interfaces/Responses';
 import { AutoGraderDetails } from '../interfaces/AutoGraderDetails';
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) {
+    return error.message || fallback;
+  }
+  if (typeof error === 'object' && error) {
+    const maybeAxiosError = error as {
+      response?: { data?: { message?: unknown } };
+    };
+    const msg = maybeAxiosError.response?.data?.message;
+    if (typeof msg === 'string' && msg.trim()) {
+      return msg;
+    }
+  }
+  return fallback;
+}
 
 export class ApiService {
   private client: ApiClient;
@@ -58,10 +73,10 @@ export class ApiService {
 
       const token: string = response.data.data.token;
       return token;
-    } catch (error: any) {
-      throw new Error(
-        error.response?.data?.message || 'Login failed.'
-      );
+    } catch (error: unknown) {
+      throw new Error(getErrorMessage(error, 'Login failed.'), {
+        cause: error,
+      });
     }
   }
 
@@ -73,8 +88,10 @@ export class ApiService {
         try {
             const response = await this.client.get<any>('/api/me');
             return response.data;
-        } catch (error: any) {
-            throw new Error(error.response?.data?.message || 'Failed to fetch me.');
+        } catch (error: unknown) {
+            throw new Error(getErrorMessage(error, 'Failed to fetch me.'), {
+        cause: error,
+      });
         }
     }
 
@@ -88,10 +105,9 @@ export class ApiService {
             const response = await this.client.get<CourseResponse>('/api/courses');
             return response.data;
         } catch (error: any) {
-            console.error('Error fetching courses:', error);
-            throw new Error(
-                error.response?.data?.message || 'Failed to fetch courses.'
-            );
+            throw new Error(getErrorMessage(error, 'Failed to fetch courses.'), {
+                cause: error,
+            });
         }
     }
 
@@ -109,11 +125,11 @@ export class ApiService {
       const url = `/api/${term}/${courseId}/gradeables`;
       const response = await this.client.get<GradableResponse>(url);
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching gradables:', error);
-      throw new Error(
-        error.response?.data?.message || 'Failed to fetch gradables.'
-      );
+      throw new Error(getErrorMessage(error, 'Failed to fetch gradables.'), {
+        cause: error,
+      });
     }
   }
 
@@ -134,10 +150,11 @@ export class ApiService {
                 `/api/${term}/${courseId}/gradeable/${gradeableId}/values`
             );
             return response.data;
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error fetching grade details:', error);
             throw new Error(
-                error.response?.data?.message || 'Failed to fetch grade details.'
+                getErrorMessage(error, 'Failed to fetch grade details.'),
+        { cause: error }
             );
         }
     }
@@ -204,10 +221,13 @@ export class ApiService {
             const url = `/api/${term}/${courseId}/gradeable/${gradeableId}/upload?vcs_upload=true&git_repo_id=true`;
             const response = await this.client.post<any>(url);
             return response.data;
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error submitting VCS gradable:', error);
             throw new Error(
-                error.response?.data?.message || 'Failed to submit VCS gradable.'
+                getErrorMessage(error, 'Failed to submit VCS gradable.'),
+        {
+          cause: error,
+        }
             );
         }
     }
@@ -223,15 +243,16 @@ export class ApiService {
         term: string,
         courseId: string,
         gradeableId: string
-    ): Promise<any[]> {
+    ): Promise<unknown[]> {
         try {
             const url = `/api/${term}/${courseId}/gradeable/${gradeableId}/attempts`;
-            const response = await this.client.get<any>(url);
+            const response = await this.client.get<unknown[]>(url);
             return response.data;
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error fetching previous attempts:', error);
             throw new Error(
-                error.response?.data?.message || 'Failed to fetch previous attempts.'
+                getErrorMessage(error, 'Failed to fetch previous attempts.'),
+        { cause: error }
             );
         }
     }

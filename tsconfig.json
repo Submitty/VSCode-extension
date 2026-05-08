@@ -1,9 +1,10 @@
 {
   "compilerOptions": {
-    "module": "Node16",
+    "module": "NodeNext",
     "target": "ES2022",
     "outDir": "out",
-    "lib": ["ES2022"],
+    "lib": ["ES2022", "DOM"],
+    "types": ["vscode", "node", "mocha"],
     "sourceMap": true,
     "rootDir": "src",
     "strict": true /* enable all strict type-checking options */

@@ -143,9 +143,11 @@
                 e.stopPropagation();
                 vscode.postMessage({
                   command: 'grade',
-                  term: this.dataset.term,
-                  courseId: this.dataset.courseId,
-                  gradeableId: this.dataset.gradeableId,
+                  data: {
+                    term: this.dataset.term,
+                    courseId: this.dataset.courseId,
+                    gradeableId: this.dataset.gradeableId,
+                  },
                 });
               });
             });

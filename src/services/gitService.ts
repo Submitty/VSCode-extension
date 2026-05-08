@@ -1,20 +1,20 @@
 import * as vscode from 'vscode';
 import type {
-  GitApi,
   GitExtension,
   Repository,
   CommitOptions,
   ForcePushMode,
 } from '../typings/vscode-git';
+import { API } from '../typings/vscode-git';
 
 /**
  * Service that delegates to the built-in vscode.git extension for
  * push, pull, and commit in the current workspace repository.
  */
 export class GitService {
-  private gitApi: GitApi | null = null;
+  private gitApi: API | null = null;
 
-  private getApi(): GitApi | null {
+  private getApi(): API | null {
     if (this.gitApi !== null) {
       return this.gitApi;
     }
@@ -39,13 +39,13 @@ export class GitService {
       return null;
     }
     if (uri) {
-      return api.getRepository(uri) ?? null;
+      return api.getRepository(uri);
     }
     const folder = vscode.workspace.workspaceFolders?.[0];
     if (!folder) {
       return api.repositories.length > 0 ? api.repositories[0] : null;
     }
-    return api.getRepository(folder.uri) ?? api.repositories[0] ?? null;
+    return api.getRepository(folder.uri) ?? api.repositories[0];
   }
 
   /**
@@ -57,6 +57,18 @@ export class GitService {
       throw new Error(
         'No Git repository found. Open a workspace folder that is a Git repo.'
       );
+    }
+
+    // Refresh repository state before checking tracked/untracked changes.
+    await repo.status();
+
+    const hasChanges =
+      repo.state.indexChanges.length > 0 ||
+      repo.state.workingTreeChanges.length > 0 ||
+      repo.state.untrackedChanges.length > 0;
+
+    if (!hasChanges) {
+      throw new Error('No changes to commit.');
     }
     await repo.commit(message, options);
   }
