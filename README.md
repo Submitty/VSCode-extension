@@ -9,7 +9,7 @@ The Submitty Extension for VS Code integrates the Submitty grading system direct
 - **Assignment Submission**: Submit assignments directly from VS Code.
 - **Grade Retrieval**: View grades and feedback within the editor.
 - **Course Management**: Access course information and assignment details.
-- **Error & Feedback Display**: Get inline feedback on submissions.
+- **Error & Feedback Display**: Get feedback on submissions using native VSCode test UI
 
 ## Setup
 
@@ -30,10 +30,3 @@ The Submitty Extension for VS Code integrates the Submitty grading system direct
 ## Requirements
 
 - A valid Submitty account.
-
-## Roadmap
-
-- [ ] Allow users to access homeowrk
-- [ ] Figure out a way to grade homework and display results back to users
-- [ ] Display test results with feedback
-- [ ] Move grade button from sidebar to up near play button?
