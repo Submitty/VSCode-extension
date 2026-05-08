@@ -9,7 +9,15 @@ export default defineConfig([
   // --- 1. Global Ignores ---
   // Files and directories to ignore across the entire project
   {
-    ignores: ['out/**', 'dist/**', '**/*.d.ts', 'node_modules/**', '.vscode-test/**', '.vscode-test.mjs', 'eslint.config.mjs'],
+    ignores: [
+      'out/**',
+      'dist/**',
+      '**/*.d.ts',
+      'node_modules/**',
+      '.vscode-test/**',
+      '.vscode-test.mjs',
+      'eslint.config.mjs',
+    ],
   },
 
   // --- 2. Base Configurations (Applied to ALL files by default) ---
@@ -31,7 +39,7 @@ export default defineConfig([
       parserOptions: {
         projectService: true,
       },
-    }
+    },
   },
 
   // --- 3. Configuration for VS Code Extension (Node.js/TypeScript) ---
@@ -66,10 +74,10 @@ export default defineConfig([
           format: ['camelCase', 'PascalCase'],
         },
       ],
-      'curly': 'warn', // Require curly braces for all control statements
-      'eqeqeq': 'warn', // Require the use of '===' and '!=='
+      curly: 'warn', // Require curly braces for all control statements
+      eqeqeq: 'warn', // Require the use of '===' and '!=='
       'no-throw-literal': 'warn', // Disallow throwing literals as exceptions
-      'semi': 'off', // Let Prettier handle semicolons (or enforce no semicolons)
+      semi: 'off', // Let Prettier handle semicolons (or enforce no semicolons)
       '@typescript-eslint/no-floating-promises': 'error', // Good for async operations
       '@typescript-eslint/explicit-function-return-type': [
         'warn',
@@ -90,5 +98,4 @@ export default defineConfig([
       '@typescript-eslint/no-explicit-any': 'off', // Or 'warn' depending on your preference
     },
   },
-
 ]);
