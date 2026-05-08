@@ -11,3 +11,4 @@ export function getClassesHtml(context: vscode.ExtensionContext): string {
   );
   return fs.readFileSync(filePath, 'utf8');
 }
+
