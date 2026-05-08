@@ -4,22 +4,22 @@ import * as vscode from 'vscode';
 import { ApiClient } from './apiClient';
 
 import {
-    CourseResponse,
-    LoginResponse,
-    GradableResponse,
+  CourseResponse,
+  LoginResponse,
+  GradableResponse,
 } from '../interfaces/Responses';
 import { AutoGraderDetails } from '../interfaces/AutoGraderDetails';
 
 export class ApiService {
-    private client: ApiClient;
-    private static instance: ApiService;
+  private client: ApiClient;
+  private static instance: ApiService;
 
-    constructor(
-        private context: vscode.ExtensionContext,
-        apiBaseUrl: string
-    ) {
-        this.client = new ApiClient(apiBaseUrl);
-    }
+  constructor(
+    private context: vscode.ExtensionContext,
+    apiBaseUrl: string
+  ) {
+    this.client = new ApiClient(apiBaseUrl);
+  }
 
     /**
      * Sets the authorization token for the API client.
@@ -56,12 +56,14 @@ export class ApiService {
                 }
             );
 
-            const token: string = response.data.data.token;
-            return token;
-        } catch (error: any) {
-            throw new Error(error.response?.data?.message || 'Login failed.');
-        }
+      const token: string = response.data.data.token;
+      return token;
+    } catch (error: any) {
+      throw new Error(
+        error.response?.data?.message || 'Login failed.'
+      );
     }
+  }
 
     /**
      * Fetches the current authenticated user's profile from the API.
@@ -93,43 +95,27 @@ export class ApiService {
         }
     }
 
-    async fetchGradables(
-        courseId: string,
-        term: string
-    ): Promise<GradableResponse> {
-        try {
-            const url = `/api/${term}/${courseId}/gradeables`;
-            const response = await this.client.get<GradableResponse>(url);
-            return response.data;
-        } catch (error: any) {
-            console.error('Error fetching gradables:', error);
-            throw new Error(
-                error.response?.data?.message || 'Failed to fetch gradables.'
-            );
-        }
-    }
-
     /**
-     * Fetches all gradables (assignments) for a course.
+     * Fetches all gradeables for a specific course.
      * @param courseId - The course ID
      * @param term - The term (e.g. "s24")
-     * @returns The gradables response
+     * @returns The gradeable list response
      */
     async fetchGradables(
-        courseId: string,
-        term: string
-    ): Promise<GradableResponse> {
-        try {
-            const url = `/api/${term}/${courseId}/gradeables`;
-            const response = await this.client.get<GradableResponse>(url);
-            return response.data;
-        } catch (error: any) {
-            console.error('Error fetching gradables:', error);
-            throw new Error(
-                error.response?.data?.message || 'Failed to fetch gradables.'
-            );
-        }
+    courseId: string,
+    term: string
+  ): Promise<GradableResponse> {
+    try {
+      const url = `/api/${term}/${courseId}/gradeables`;
+      const response = await this.client.get<GradableResponse>(url);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching gradables:', error);
+      throw new Error(
+        error.response?.data?.message || 'Failed to fetch gradables.'
+      );
     }
+  }
 
     /**
      * Fetches grade details for a specific homework assignment.
@@ -179,27 +165,27 @@ export class ApiService {
         const token = options?.token;
         const deadline = timeoutMs > 0 ? Date.now() + timeoutMs : 0;
 
-        const isComplete = (res: AutoGraderDetails): boolean =>
-            res?.data?.autograding_complete === true &&
-            Array.isArray(res.data.test_cases) &&
-            res.data.test_cases.length > 0;
+    const isComplete = (res: AutoGraderDetails): boolean =>
+      res?.data?.autograding_complete === true &&
+      Array.isArray(res.data.test_cases) &&
+      res.data.test_cases.length > 0;
 
-        for (; ;) {
-            if (token?.isCancellationRequested) {
-                throw new Error('Cancelled');
-            }
-            if (deadline > 0 && Date.now() >= deadline) {
-                throw new Error('Autograding did not complete within the timeout.');
-            }
+    for (;;) {
+      if (token?.isCancellationRequested) {
+        throw new Error('Cancelled');
+      }
+      if (deadline > 0 && Date.now() >= deadline) {
+        throw new Error('Autograding did not complete within the timeout.');
+      }
 
-            const result = await this.fetchGradeDetails(term, courseId, gradeableId);
-            if (isComplete(result)) {
-                return result;
-            }
+      const result = await this.fetchGradeDetails(term, courseId, gradeableId);
+      if (isComplete(result)) {
+        return result;
+      }
 
-            await new Promise(r => setTimeout(r, intervalMs));
-        }
+      await new Promise(r => setTimeout(r, intervalMs));
     }
+  }
 
     /**
      * Submits a VCS (version control) gradable to trigger autograding.

@@ -16,14 +16,14 @@ export class AuthService {
     async initialize(): Promise<void> {
         console.log('Initializing AuthService');
 
-        // Get base URL from configuration
-        const config = vscode.workspace.getConfiguration('submitty');
-        let baseUrl = config.get<string>('baseUrl', '');
+    // Get base URL from configuration
+    const config = vscode.workspace.getConfiguration('submitty');
+    let baseUrl = config.get<string>('baseUrl', '');
 
-        // If base URL is configured, set it on the API service
-        if (baseUrl) {
-            this.apiService.setBaseUrl(baseUrl);
-        }
+    // If base URL is configured, set it on the API service
+    if (baseUrl) {
+      this.apiService.setBaseUrl(baseUrl);
+    }
 
         const token = await this.getToken();
         console.log('Token:', token);
@@ -55,12 +55,12 @@ export class AuthService {
                 },
             });
 
-            if (!inputUrl) {
-                // User cancelled
-                return;
-            }
+      if (!inputUrl) {
+        // User cancelled
+        return;
+      }
 
-            baseUrl = inputUrl.trim();
+      baseUrl = inputUrl.trim();
 
             // Save base URL to configuration
             await config.update(
@@ -69,9 +69,9 @@ export class AuthService {
                 vscode.ConfigurationTarget.Global
             );
 
-            // Set the base URL on the API service
-            this.apiService.setBaseUrl(baseUrl);
-        }
+      // Set the base URL on the API service
+      this.apiService.setBaseUrl(baseUrl);
+    }
 
         const userId = await vscode.window.showInputBox({
             prompt: 'Enter your Submitty username',
@@ -85,10 +85,10 @@ export class AuthService {
             },
         });
 
-        if (!userId) {
-            // User cancelled
-            return;
-        }
+    if (!userId) {
+      // User cancelled
+      return;
+    }
 
         const password = await vscode.window.showInputBox({
             prompt: 'Enter your Submitty password',
@@ -103,15 +103,15 @@ export class AuthService {
             },
         });
 
-        if (!password) {
-            // User cancelled
-            return;
-        }
+    if (!password) {
+      // User cancelled
+      return;
+    }
 
-        // Update API service with URL and login
-        try {
-            // Perform login
-            await this.login(userId.trim(), password);
+    // Update API service with URL and login
+    try {
+      // Perform login
+      await this.login(userId.trim(), password);
 
             vscode.window.showInformationMessage(
                 'Successfully logged in to Submitty'
@@ -134,10 +134,10 @@ export class AuthService {
         return await keytar.getPassword('submittyToken', 'submittyToken');
     }
 
-    // public method to get token
-    async getAuthorizationToken(): Promise<string | null> {
-        return await this.getToken();
-    }
+  // public method to get token
+  async getAuthorizationToken(): Promise<string | null> {
+    return await this.getToken();
+  }
 
     private async login(userId: string, password: string): Promise<string> {
         const token = await this.apiService.login(userId, password);
