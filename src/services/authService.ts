@@ -64,24 +64,24 @@ export class AuthService {
       return;
     }
 
-        // If no base URL is configured, prompt for it
-        if (!baseUrl) {
-            const inputUrl = await vscode.window.showInputBox({
-                prompt: 'Enter Submitty API URL',
-                placeHolder: 'https://example.submitty.edu',
-                ignoreFocusOut: true,
-                validateInput: value => {
-                    if (!value || value.trim().length === 0) {
-                        return 'URL is required';
-                    }
-                    try {
-                        new URL(value);
-                        return null;
-                    } catch {
-                        return 'Please enter a valid URL';
-                    }
-                },
-            });
+    // If no base URL is configured, prompt for it
+    if (!baseUrl) {
+      const inputUrl = await vscode.window.showInputBox({
+        prompt: 'Enter Submitty API URL',
+        placeHolder: 'https://example.submitty.edu',
+        ignoreFocusOut: true,
+        validateInput: value => {
+          if (!value || value.trim().length === 0) {
+            return 'URL is required';
+          }
+          try {
+            new URL(value);
+            return null;
+          } catch {
+            return 'Please enter a valid URL';
+          }
+        },
+      });
 
       if (!inputUrl) {
         // User cancelled
@@ -90,46 +90,46 @@ export class AuthService {
 
       baseUrl = inputUrl.trim();
 
-            // Save base URL to configuration
-            await config.update(
-                'baseUrl',
-                baseUrl,
-                vscode.ConfigurationTarget.Global
-            );
+      // Save base URL to configuration
+      await config.update(
+        'baseUrl',
+        baseUrl,
+        vscode.ConfigurationTarget.Global
+      );
 
       // Set the base URL on the API service
       this.apiService.setBaseUrl(baseUrl);
     }
 
-        const userId = await vscode.window.showInputBox({
-            prompt: 'Enter your Submitty username',
-            placeHolder: 'Username',
-            ignoreFocusOut: true,
-            validateInput: value => {
-                if (!value || value.trim().length === 0) {
-                    return 'Username is required';
-                }
-                return null;
-            },
-        });
+    const userId = await vscode.window.showInputBox({
+      prompt: 'Enter your Submitty username',
+      placeHolder: 'Username',
+      ignoreFocusOut: true,
+      validateInput: value => {
+        if (!value || value.trim().length === 0) {
+          return 'Username is required';
+        }
+        return null;
+      },
+    });
 
     if (!userId) {
       // User cancelled
       return;
     }
 
-        const password = await vscode.window.showInputBox({
-            prompt: 'Enter your Submitty password',
-            placeHolder: 'Password',
-            password: true,
-            ignoreFocusOut: true,
-            validateInput: value => {
-                if (!value || value.trim().length === 0) {
-                    return 'Password is required';
-                }
-                return null;
-            },
-        });
+    const password = await vscode.window.showInputBox({
+      prompt: 'Enter your Submitty password',
+      placeHolder: 'Password',
+      password: true,
+      ignoreFocusOut: true,
+      validateInput: value => {
+        if (!value || value.trim().length === 0) {
+          return 'Password is required';
+        }
+        return null;
+      },
+    });
 
     if (!password) {
       // User cancelled

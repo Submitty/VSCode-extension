@@ -36,40 +36,40 @@ export class ApiService {
     this.client = new ApiClient(apiBaseUrl);
   }
 
-    /**
-     * Sets the authorization token for the API client.
-     * @param token - The bearer token for authenticated requests
-     */
-    setAuthorizationToken(token: string): void {
-        this.client.setToken(token);
-    }
+  /**
+   * Sets the authorization token for the API client.
+   * @param token - The bearer token for authenticated requests
+   */
+  setAuthorizationToken(token: string): void {
+    this.client.setToken(token);
+  }
 
-    /**
-     * Sets the base URL for the API client.
-     * @param baseUrl - The base URL of the Submitty API
-     */
-    setBaseUrl(baseUrl: string): void {
-        this.client.setBaseURL(baseUrl);
-    }
+  /**
+   * Sets the base URL for the API client.
+   * @param baseUrl - The base URL of the Submitty API
+   */
+  setBaseUrl(baseUrl: string): void {
+    this.client.setBaseURL(baseUrl);
+  }
 
-    /**
-     * Logs in to the Submitty API and returns an auth token.
-     * @param userId - The user ID
-     * @param password - The user password
-     * @returns The authentication token
-     */
-    async login(userId: string, password: string): Promise<string> {
-        try {
-            const response = await this.client.post<LoginResponse>(
-                '/api/token',
-                {
-                    user_id: userId,
-                    password: password,
-                },
-                {
-                    headers: { 'Content-Type': 'multipart/form-data' },
-                }
-            );
+  /**
+   * Logs in to the Submitty API and returns an auth token.
+   * @param userId - The user ID
+   * @param password - The user password
+   * @returns The authentication token
+   */
+  async login(userId: string, password: string): Promise<string> {
+    try {
+      const response = await this.client.post<LoginResponse>(
+        '/api/token',
+        {
+          user_id: userId,
+          password: password,
+        },
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        }
+      );
 
       const token: string = response.data.data.token;
       return token;
@@ -80,44 +80,43 @@ export class ApiService {
     }
   }
 
-    /**
-     * Fetches the current authenticated user's profile from the API.
-     * @returns The current user data
-     */
-    async fetchMe(): Promise<any> {
-        try {
-            const response = await this.client.get<any>('/api/me');
-            return response.data;
-        } catch (error: unknown) {
-            throw new Error(getErrorMessage(error, 'Failed to fetch me.'), {
+  /**
+   * Fetches the current authenticated user's profile from the API.
+   * @returns The current user data
+   */
+  async fetchMe(): Promise<any> {
+    try {
+      const response = await this.client.get<any>('/api/me');
+      return response.data;
+    } catch (error: unknown) {
+      throw new Error(getErrorMessage(error, 'Failed to fetch me.'), {
         cause: error,
       });
-        }
     }
+  }
 
-    /**
-     * Fetches all courses for the authenticated user.
-     * @param token - Optional token override (currently unused)
-     * @returns The course list response
-     */
-    async fetchCourses(token?: string): Promise<CourseResponse> {
-        try {
-            const response = await this.client.get<CourseResponse>('/api/courses');
-            return response.data;
-        } catch (error: any) {
-            throw new Error(getErrorMessage(error, 'Failed to fetch courses.'), {
-                cause: error,
-            });
-        }
+  /**
+   * Fetches all courses for the authenticated user.
+   * @returns The course list response
+   */
+  async fetchCourses(): Promise<CourseResponse> {
+    try {
+      const response = await this.client.get<CourseResponse>('/api/courses');
+      return response.data;
+    } catch (error: any) {
+      throw new Error(getErrorMessage(error, 'Failed to fetch courses.'), {
+        cause: error,
+      });
     }
+  }
 
-    /**
-     * Fetches all gradeables for a specific course.
-     * @param courseId - The course ID
-     * @param term - The term (e.g. "s24")
-     * @returns The gradeable list response
-     */
-    async fetchGradables(
+  /**
+   * Fetches all gradeables for a specific course.
+   * @param courseId - The course ID
+   * @param term - The term (e.g. "s24")
+   * @returns The gradeable list response
+   */
+  async fetchGradables(
     courseId: string,
     term: string
   ): Promise<GradableResponse> {
@@ -133,54 +132,54 @@ export class ApiService {
     }
   }
 
-    /**
-     * Fetches grade details for a specific homework assignment.
-     * @param term - The term (e.g. "s24")
-     * @param courseId - The course ID
-     * @param gradeableId - The gradeable/assignment ID
-     * @returns The autograder details including test cases
-     */
-    async fetchGradeDetails(
-        term: string,
-        courseId: string,
-        gradeableId: string
-    ): Promise<AutoGraderDetails> {
-        try {
-            const response = await this.client.get<AutoGraderDetails>(
-                `/api/${term}/${courseId}/gradeable/${gradeableId}/values`
-            );
-            return response.data;
-        } catch (error: unknown) {
-            console.error('Error fetching grade details:', error);
-            throw new Error(
-                getErrorMessage(error, 'Failed to fetch grade details.'),
+  /**
+   * Fetches grade details for a specific homework assignment.
+   * @param term - The term (e.g. "s24")
+   * @param courseId - The course ID
+   * @param gradeableId - The gradeable/assignment ID
+   * @returns The autograder details including test cases
+   */
+  async fetchGradeDetails(
+    term: string,
+    courseId: string,
+    gradeableId: string
+  ): Promise<AutoGraderDetails> {
+    try {
+      const response = await this.client.get<AutoGraderDetails>(
+        `/api/${term}/${courseId}/gradeable/${gradeableId}/values`
+      );
+      return response.data;
+    } catch (error: unknown) {
+      console.error('Error fetching grade details:', error);
+      throw new Error(
+        getErrorMessage(error, 'Failed to fetch grade details.'),
         { cause: error }
-            );
-        }
+      );
     }
+  }
 
-    /**
-     * Polls fetchGradeDetails until autograding is complete and test cases are available.
-     * @param term - The term (e.g. "s24")
-     * @param courseId - The course ID
-     * @param gradeableId - The gradeable/assignment ID
-     * @param options - Optional polling config: intervalMs (default 2000), timeoutMs (default 300000), token (cancellation)
-     * @returns The final AutoGraderDetails with complete data
-     */
-    async pollGradeDetailsUntilComplete(
-        term: string,
-        courseId: string,
-        gradeableId: string,
-        options?: {
-            intervalMs?: number;
-            timeoutMs?: number;
-            token?: vscode.CancellationToken;
-        }
-    ): Promise<AutoGraderDetails> {
-        const intervalMs = options?.intervalMs ?? 2000;
-        const timeoutMs = options?.timeoutMs ?? 300000;
-        const token = options?.token;
-        const deadline = timeoutMs > 0 ? Date.now() + timeoutMs : 0;
+  /**
+   * Polls fetchGradeDetails until autograding is complete and test cases are available.
+   * @param term - The term (e.g. "s24")
+   * @param courseId - The course ID
+   * @param gradeableId - The gradeable/assignment ID
+   * @param options - Optional polling config: intervalMs (default 2000), timeoutMs (default 300000), token (cancellation)
+   * @returns The final AutoGraderDetails with complete data
+   */
+  async pollGradeDetailsUntilComplete(
+    term: string,
+    courseId: string,
+    gradeableId: string,
+    options?: {
+      intervalMs?: number;
+      timeoutMs?: number;
+      token?: vscode.CancellationToken;
+    }
+  ): Promise<AutoGraderDetails> {
+    const intervalMs = options?.intervalMs ?? 2000;
+    const timeoutMs = options?.timeoutMs ?? 300000;
+    const token = options?.token;
+    const deadline = timeoutMs > 0 ? Date.now() + timeoutMs : 0;
 
     const isComplete = (res: AutoGraderDetails): boolean =>
       res?.data?.autograding_complete === true &&
@@ -204,72 +203,72 @@ export class ApiService {
     }
   }
 
-    /**
-     * Submits a VCS (version control) gradable to trigger autograding.
-     * @param term - The term (e.g. "s24")
-     * @param courseId - The course ID
-     * @param gradeableId - The gradeable/assignment ID
-     * @returns The upload response
-     */
-    async submitVCSGradable(
-        term: string,
-        courseId: string,
-        gradeableId: string
-    ): Promise<any> {
-        try {
-            // git_repo_id is literally not used, but is required by the API *ugh*
-            const url = `/api/${term}/${courseId}/gradeable/${gradeableId}/upload?vcs_upload=true&git_repo_id=true`;
-            const response = await this.client.post<any>(url);
-            return response.data;
-        } catch (error: unknown) {
-            console.error('Error submitting VCS gradable:', error);
-            throw new Error(
-                getErrorMessage(error, 'Failed to submit VCS gradable.'),
+  /**
+   * Submits a VCS (version control) gradable to trigger autograding.
+   * @param term - The term (e.g. "s24")
+   * @param courseId - The course ID
+   * @param gradeableId - The gradeable/assignment ID
+   * @returns The upload response
+   */
+  async submitVCSGradable(
+    term: string,
+    courseId: string,
+    gradeableId: string
+  ): Promise<any> {
+    try {
+      // git_repo_id is literally not used, but is required by the API *ugh*
+      const url = `/api/${term}/${courseId}/gradeable/${gradeableId}/upload?vcs_upload=true&git_repo_id=true`;
+      const response = await this.client.post<any>(url);
+      return response.data;
+    } catch (error: unknown) {
+      console.error('Error submitting VCS gradable:', error);
+      throw new Error(
+        getErrorMessage(error, 'Failed to submit VCS gradable.'),
         {
           cause: error,
         }
-            );
-        }
+      );
     }
+  }
 
-    /**
-     * Fetches previous submission attempts for a specific homework assignment.
-     * @param term - The term (e.g. "s24")
-     * @param courseId - The course ID
-     * @param gradeableId - The gradeable/assignment ID
-     * @returns The list of previous attempts
-     */
-    async fetchPreviousAttempts(
-        term: string,
-        courseId: string,
-        gradeableId: string
-    ): Promise<unknown[]> {
-        try {
-            const url = `/api/${term}/${courseId}/gradeable/${gradeableId}/attempts`;
-            const response = await this.client.get<unknown[]>(url);
-            return response.data;
-        } catch (error: unknown) {
-            console.error('Error fetching previous attempts:', error);
-            throw new Error(
-                getErrorMessage(error, 'Failed to fetch previous attempts.'),
+  /**
+   * Fetches previous submission attempts for a specific homework assignment.
+   * @param term - The term (e.g. "s24")
+   * @param courseId - The course ID
+   * @param gradeableId - The gradeable/assignment ID
+   * @returns The list of previous attempts
+   */
+  async fetchPreviousAttempts(
+    term: string,
+    courseId: string,
+    gradeableId: string
+  ): Promise<unknown[]> {
+    try {
+      const url = `/api/${term}/${courseId}/gradeable/${gradeableId}/attempts`;
+      const response = await this.client.get<unknown[]>(url);
+      return response.data;
+    } catch (error: unknown) {
+      console.error('Error fetching previous attempts:', error);
+      throw new Error(
+        getErrorMessage(error, 'Failed to fetch previous attempts.'),
         { cause: error }
-            );
-        }
+      );
     }
+  }
 
-    /**
-     * Returns the singleton ApiService instance, creating it if necessary.
-     * @param context - The extension context
-     * @param apiBaseUrl - The base URL of the Submitty API
-     * @returns The ApiService instance
-     */
-    static getInstance(
-        context: vscode.ExtensionContext,
-        apiBaseUrl: string
-    ): ApiService {
-        if (!ApiService.instance) {
-            ApiService.instance = new ApiService(context, apiBaseUrl);
-        }
-        return ApiService.instance;
+  /**
+   * Returns the singleton ApiService instance, creating it if necessary.
+   * @param context - The extension context
+   * @param apiBaseUrl - The base URL of the Submitty API
+   * @returns The ApiService instance
+   */
+  static getInstance(
+    context: vscode.ExtensionContext,
+    apiBaseUrl: string
+  ): ApiService {
+    if (!ApiService.instance) {
+      ApiService.instance = new ApiService(context, apiBaseUrl);
     }
+    return ApiService.instance;
+  }
 }
