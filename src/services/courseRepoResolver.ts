@@ -133,7 +133,7 @@ export class CourseRepoResolver {
     this.apiService.setAuthorizationToken(token);
 
     // Fetch courses and match based on whether their (term, courseId) strings appear in remote URLs.
-    const coursesResponse = await this.apiService.fetchCourses(token);
+    const coursesResponse = await this.apiService.fetchCourses();
     const courses = coursesResponse.data.unarchived_courses;
 
     const remoteText = remoteUrls.join(' ');

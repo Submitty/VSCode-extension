@@ -7,28 +7,8 @@ import {
   LoginResponse,
   GradableResponse,
 } from '../interfaces/Responses';
-import {
-  CourseResponse,
-  LoginResponse,
-  GradableResponse,
-} from '../interfaces/Responses';
 import { AutoGraderDetails } from '../interfaces/AutoGraderDetails';
 
-function getErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof Error) {
-    return error.message || fallback;
-  }
-  if (typeof error === 'object' && error) {
-    const maybeAxiosError = error as {
-      response?: { data?: { message?: unknown } };
-    };
-    const msg = maybeAxiosError.response?.data?.message;
-    if (typeof msg === 'string' && msg.trim()) {
-      return msg;
-    }
-  }
-  return fallback;
-}
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) {
     return error.message || fallback;
@@ -48,15 +28,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
 export class ApiService {
   private client: ApiClient;
   private static instance: ApiService;
-  private client: ApiClient;
-  private static instance: ApiService;
 
-  constructor(
-    private context: vscode.ExtensionContext,
-    apiBaseUrl: string
-  ) {
-    this.client = new ApiClient(apiBaseUrl);
-  }
   constructor(
     private context: vscode.ExtensionContext,
     apiBaseUrl: string
@@ -213,10 +185,6 @@ export class ApiService {
       res?.data?.autograding_complete === true &&
       Array.isArray(res.data.test_cases) &&
       res.data.test_cases.length > 0;
-    const isComplete = (res: AutoGraderDetails): boolean =>
-      res?.data?.autograding_complete === true &&
-      Array.isArray(res.data.test_cases) &&
-      res.data.test_cases.length > 0;
 
     for (;;) {
       if (token?.isCancellationRequested) {
@@ -225,18 +193,7 @@ export class ApiService {
       if (deadline > 0 && Date.now() >= deadline) {
         throw new Error('Autograding did not complete within the timeout.');
       }
-    for (;;) {
-      if (token?.isCancellationRequested) {
-        throw new Error('Cancelled');
-      }
-      if (deadline > 0 && Date.now() >= deadline) {
-        throw new Error('Autograding did not complete within the timeout.');
-      }
 
-      const result = await this.fetchGradeDetails(term, courseId, gradeableId);
-      if (isComplete(result)) {
-        return result;
-      }
       const result = await this.fetchGradeDetails(term, courseId, gradeableId);
       if (isComplete(result)) {
         return result;
@@ -315,4 +272,3 @@ export class ApiService {
     return ApiService.instance;
   }
 }
-

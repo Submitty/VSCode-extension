@@ -75,13 +75,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
     this.isLoadingCourses = true;
     try {
-      const token = await this.authService.getAuthorizationToken();
-      if (!token) {
-        return;
-      }
-
       this._view.webview.html = getClassesHtml(this.context);
-      await this.fetchAndDisplayCourses(token, this._view);
+      await this.fetchAndDisplayCourses(this._view);
     } catch (error: unknown) {
       const err = error instanceof Error ? error.message : String(error);
       console.error('Failed to load courses:', error);
@@ -106,10 +101,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     switch (msg.command) {
       case MessageCommand.FETCH_AND_DISPLAY_COURSES:
         try {
-          const token = await this.authService.getAuthorizationToken();
-          if (token) {
-            await this.fetchAndDisplayCourses(token, view);
-          }
+          await this.fetchAndDisplayCourses(view);
         } catch (error: unknown) {
           const err = error instanceof Error ? error.message : String(error);
           console.error('Failed to fetch and display courses:', error);
@@ -157,11 +149,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   }
 
   private async fetchAndDisplayCourses(
-    token: string,
     view: vscode.WebviewView
   ): Promise<void> {
     try {
-      const courses = await this.apiService.fetchCourses(token);
+      const courses = await this.apiService.fetchCourses();
       const unarchived = courses.data.unarchived_courses;
 
       const coursesWithGradables = await Promise.all(
