@@ -85,7 +85,41 @@ export class GitService {
     }
     await repo.pull();
   }
+  /**
+   * Pull from the current branch's upstream.
+   */
+  async pull(): Promise<void> {
+    const repo = this.getRepository();
+    if (!repo) {
+      throw new Error(
+        'No Git repository found. Open a workspace folder that is a Git repo.'
+      );
+    }
+    await repo.pull();
+  }
 
+  /**
+   * Push the current branch. Optionally set upstream or force push.
+   */
+  async push(options?: {
+    remote?: string;
+    branch?: string;
+    setUpstream?: boolean;
+    force?: ForcePushMode;
+  }): Promise<void> {
+    const repo = this.getRepository();
+    if (!repo) {
+      throw new Error(
+        'No Git repository found. Open a workspace folder that is a Git repo.'
+      );
+    }
+    await repo.push(
+      options?.remote,
+      options?.branch,
+      options?.setUpstream,
+      options?.force
+    );
+  }
   /**
    * Push the current branch. Optionally set upstream or force push.
    */

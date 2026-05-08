@@ -22,6 +22,10 @@ export class AuthService {
     if (baseUrl) {
       this.apiService.setBaseUrl(baseUrl);
     }
+    // If base URL is configured, set it on the API service
+    if (baseUrl) {
+      this.apiService.setBaseUrl(baseUrl);
+    }
 
     const token = await this.getToken();
     if (token) {
@@ -82,12 +86,35 @@ export class AuthService {
           }
         },
       });
+    // If no base URL is configured, prompt for it
+    if (!baseUrl) {
+      const inputUrl = await vscode.window.showInputBox({
+        prompt: 'Enter Submitty API URL',
+        placeHolder: 'https://example.submitty.edu',
+        ignoreFocusOut: true,
+        validateInput: value => {
+          if (!value || value.trim().length === 0) {
+            return 'URL is required';
+          }
+          try {
+            new URL(value);
+            return null;
+          } catch {
+            return 'Please enter a valid URL';
+          }
+        },
+      });
 
       if (!inputUrl) {
         // User cancelled
         return;
       }
+      if (!inputUrl) {
+        // User cancelled
+        return;
+      }
 
+      baseUrl = inputUrl.trim();
       baseUrl = inputUrl.trim();
 
       // Save base URL to configuration
@@ -96,7 +123,16 @@ export class AuthService {
         baseUrl,
         vscode.ConfigurationTarget.Global
       );
+      // Save base URL to configuration
+      await config.update(
+        'baseUrl',
+        baseUrl,
+        vscode.ConfigurationTarget.Global
+      );
 
+      // Set the base URL on the API service
+      this.apiService.setBaseUrl(baseUrl);
+    }
       // Set the base URL on the API service
       this.apiService.setBaseUrl(baseUrl);
     }
@@ -112,7 +148,22 @@ export class AuthService {
         return null;
       },
     });
+    const userId = await vscode.window.showInputBox({
+      prompt: 'Enter your Submitty username',
+      placeHolder: 'Username',
+      ignoreFocusOut: true,
+      validateInput: value => {
+        if (!value || value.trim().length === 0) {
+          return 'Username is required';
+        }
+        return null;
+      },
+    });
 
+    if (!userId) {
+      // User cancelled
+      return;
+    }
     if (!userId) {
       // User cancelled
       return;
@@ -130,12 +181,32 @@ export class AuthService {
         return null;
       },
     });
+    const password = await vscode.window.showInputBox({
+      prompt: 'Enter your Submitty password',
+      placeHolder: 'Password',
+      password: true,
+      ignoreFocusOut: true,
+      validateInput: value => {
+        if (!value || value.trim().length === 0) {
+          return 'Password is required';
+        }
+        return null;
+      },
+    });
 
     if (!password) {
       // User cancelled
       return;
     }
+    if (!password) {
+      // User cancelled
+      return;
+    }
 
+    // Update API service with URL and login
+    try {
+      // Perform login
+      await this.login(userId.trim(), password);
     // Update API service with URL and login
     try {
       // Perform login
@@ -161,6 +232,10 @@ export class AuthService {
     return await keytar.getPassword('submittyToken', 'submittyToken');
   }
 
+  // public method to get token
+  async getAuthorizationToken(): Promise<string | null> {
+    return await this.getToken();
+  }
   // public method to get token
   async getAuthorizationToken(): Promise<string | null> {
     return await this.getToken();

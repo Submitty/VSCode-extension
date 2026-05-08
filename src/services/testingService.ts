@@ -17,6 +17,9 @@ interface GradeableMeta {
   term: string;
   courseId: string;
   gradeableId: string;
+  term: string;
+  courseId: string;
+  gradeableId: string;
 }
 
 export class TestingService {
@@ -24,7 +27,26 @@ export class TestingService {
   private rootItem: vscode.TestItem;
   private gradeableMeta = new WeakMap<vscode.TestItem, GradeableMeta>();
   private testCaseMeta = new WeakMap<vscode.TestItem, TestCase>();
+  private controller: vscode.TestController;
+  private rootItem: vscode.TestItem;
+  private gradeableMeta = new WeakMap<vscode.TestItem, GradeableMeta>();
+  private testCaseMeta = new WeakMap<vscode.TestItem, TestCase>();
 
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly apiService: ApiService
+  ) {
+    this.controller = vscode.tests.createTestController(
+      CONTROLLER_ID,
+      CONTROLLER_LABEL
+    );
+    this.rootItem = this.controller.createTestItem(
+      ROOT_ID,
+      'Submitty',
+      undefined
+    );
+    this.rootItem.canResolveChildren = true;
+    this.controller.items.add(this.rootItem);
   constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly apiService: ApiService
@@ -48,7 +70,16 @@ export class TestingService {
       (request, token) => this.runHandler(request, token)
     );
     runProfile.isDefault = true;
+    this.controller.resolveHandler = async item => this.resolveHandler(item);
+    const runProfile = this.controller.createRunProfile(
+      'Run',
+      vscode.TestRunProfileKind.Run,
+      (request, token) => this.runHandler(request, token)
+    );
+    runProfile.isDefault = true;
 
+    context.subscriptions.push(this.controller);
+  }
     context.subscriptions.push(this.controller);
   }
 
@@ -96,6 +127,9 @@ export class TestingService {
     run.end();
   }
 
+  private getGradeableMeta(item: vscode.TestItem): GradeableMeta | undefined {
+    return this.gradeableMeta.get(item);
+  }
   private getGradeableMeta(item: vscode.TestItem): GradeableMeta | undefined {
     return this.gradeableMeta.get(item);
   }
@@ -204,6 +238,28 @@ export class TestingService {
       }
     }
   }
+  private syncTestCaseChildren(
+    gradeableItem: vscode.TestItem,
+    data: AutoGraderDetailsData
+  ): void {
+    const cases = data.test_cases ?? [];
+    for (let i = 0; i < cases.length; i++) {
+      const tc = cases[i];
+      const id = `tc-${i}-${tc.name ?? i}`;
+      let child = gradeableItem.children.get(id);
+      if (!child) {
+        child = this.controller.createTestItem(
+          id,
+          tc.name || `Test ${i + 1}`,
+          undefined
+        );
+        this.testCaseMeta.set(child, tc);
+        gradeableItem.children.add(child);
+      } else {
+        this.testCaseMeta.set(child, tc);
+      }
+    }
+  }
 
   private reportGradeableResult(
     run: vscode.TestRun,
@@ -280,7 +336,23 @@ export class TestingService {
     } else {
       this.rootItem.children.forEach(t => queue.push(t));
     }
+    if (request.include) {
+      request.include.forEach(t => {
+        if (t.id === ROOT_ID) {
+          this.rootItem.children.forEach(c => queue.push(c));
+        } else {
+          queue.push(t);
+        }
+      });
+    } else {
+      this.rootItem.children.forEach(t => queue.push(t));
+    }
 
+    while (queue.length > 0 && !token.isCancellationRequested) {
+      const item = queue.shift()!;
+      if (request.exclude?.includes(item)) {
+        continue;
+      }
     while (queue.length > 0 && !token.isCancellationRequested) {
       const item = queue.shift()!;
       if (request.exclude?.includes(item)) {
@@ -291,7 +363,13 @@ export class TestingService {
       if (!meta) {
         continue;
       }
+      const meta = this.getGradeableMeta(item);
+      if (!meta) {
+        continue;
+      }
 
+      run.started(item);
+      run.appendOutput(`Polling grade details for ${item.label}...\r\n`);
       run.started(item);
       run.appendOutput(`Polling grade details for ${item.label}...\r\n`);
 
@@ -312,6 +390,8 @@ export class TestingService {
       }
     }
 
+    run.end();
+  }
     run.end();
   }
 }

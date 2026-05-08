@@ -37,6 +37,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         vscode.Uri.joinPath(this.context.extensionUri, 'src', 'webview'),
       ],
     };
+    webviewView.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [
+        vscode.Uri.joinPath(this.context.extensionUri, 'src', 'webview'),
+      ],
+    };
 
     // Initially show blank screen
     webviewView.webview.html = this.getBlankHtml();
@@ -55,7 +61,22 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       this.isInitialized = true;
       try {
         await this.authService.initialize();
+    // Initialize authentication when sidebar is opened (only once)
+    if (!this.isInitialized) {
+      this.isInitialized = true;
+      try {
+        await this.authService.initialize();
 
+        // After authentication, fetch and display courses
+        await this.loadCourses();
+      } catch (error: any) {
+        console.error('Authentication initialization failed:', error);
+        // Error is already shown to user in authService
+      }
+    } else {
+      // If already initialized, just load courses
+      await this.loadCourses();
+    }
         // After authentication, fetch and display courses
         await this.loadCourses();
       } catch (error: any) {
@@ -76,7 +97,20 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       this.context.subscriptions
     );
   }
+    // Handle messages from the webview
+    webviewView.webview.onDidReceiveMessage(
+      async message => {
+        await this.handleMessage(message, webviewView);
+      },
+      undefined,
+      this.context.subscriptions
+    );
+  }
 
+  private async loadCourses(): Promise<void> {
+    if (!this._view) {
+      return;
+    }
   private async loadCourses(): Promise<void> {
     if (!this._view) {
       return;
@@ -93,6 +127,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         return;
       }
 
+      // Show classes HTML
+      this._view.webview.html = getClassesHtml(this.context);
       // Show classes HTML
       this._view.webview.html = getClassesHtml(this.context);
 
@@ -333,6 +369,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
   private getBlankHtml(): string {
     return `
+  private getBlankHtml(): string {
+    return `
             <!DOCTYPE html>
             <html lang="en">
             <head>
@@ -351,5 +389,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             </body>
             </html>
         `;
+  }
   }
 }
