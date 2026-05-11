@@ -36,18 +36,27 @@ export class ApiService {
     this.client = new ApiClient(apiBaseUrl);
   }
 
-  // set token for local api client
+  /**
+   * Sets the authorization token for the API client.
+   * @param token - The bearer token for authenticated requests
+   */
   setAuthorizationToken(token: string): void {
     this.client.setToken(token);
   }
 
-  // set base URL for local api client
+  /**
+   * Sets the base URL for the API client.
+   * @param baseUrl - The base URL of the Submitty API
+   */
   setBaseUrl(baseUrl: string): void {
     this.client.setBaseURL(baseUrl);
   }
 
   /**
-   * Login to the Submitty API
+   * Logs in to the Submitty API and returns an auth token.
+   * @param userId - The user ID
+   * @param password - The user password
+   * @returns The authentication token
    */
   async login(userId: string, password: string): Promise<string> {
     try {
@@ -71,6 +80,10 @@ export class ApiService {
     }
   }
 
+  /**
+   * Fetches the current authenticated user's profile from the API.
+   * @returns The current user data
+   */
   async fetchMe(): Promise<any> {
     try {
       const response = await this.client.get<any>('/api/me');
@@ -83,20 +96,26 @@ export class ApiService {
   }
 
   /**
-   * Fetch all courses for the authenticated user
+   * Fetches all courses for the authenticated user.
+   * @returns The course list response
    */
-  async fetchCourses(_token?: string): Promise<CourseResponse> {
+  async fetchCourses(): Promise<CourseResponse> {
     try {
       const response = await this.client.get<CourseResponse>('/api/courses');
       return response.data;
-    } catch (error: unknown) {
-      console.error('Error fetching courses:', error);
+    } catch (error: any) {
       throw new Error(getErrorMessage(error, 'Failed to fetch courses.'), {
         cause: error,
       });
     }
   }
 
+  /**
+   * Fetches all gradeables for a specific course.
+   * @param courseId - The course ID
+   * @param term - The term (e.g. "s24")
+   * @returns The gradeable list response
+   */
   async fetchGradables(
     courseId: string,
     term: string
@@ -114,7 +133,11 @@ export class ApiService {
   }
 
   /**
-   * Fetch grade details for a specific homework assignment
+   * Fetches grade details for a specific homework assignment.
+   * @param term - The term (e.g. "s24")
+   * @param courseId - The course ID
+   * @param gradeableId - The gradeable/assignment ID
+   * @returns The autograder details including test cases
    */
   async fetchGradeDetails(
     term: string,
@@ -136,9 +159,11 @@ export class ApiService {
   }
 
   /**
-   * Poll fetchGradeDetails until autograding_complete is true and test_cases has data.
-   * @param intervalMs Delay between requests (default 2000)
-   * @param timeoutMs Stop after this many ms (default 300000 = 5 min); 0 = no timeout
+   * Polls fetchGradeDetails until autograding is complete and test cases are available.
+   * @param term - The term (e.g. "s24")
+   * @param courseId - The course ID
+   * @param gradeableId - The gradeable/assignment ID
+   * @param options - Optional polling config: intervalMs (default 2000), timeoutMs (default 300000), token (cancellation)
    * @returns The final AutoGraderDetails with complete data
    */
   async pollGradeDetailsUntilComplete(
@@ -178,6 +203,13 @@ export class ApiService {
     }
   }
 
+  /**
+   * Submits a VCS (version control) gradable to trigger autograding.
+   * @param term - The term (e.g. "s24")
+   * @param courseId - The course ID
+   * @param gradeableId - The gradeable/assignment ID
+   * @returns The upload response
+   */
   async submitVCSGradable(
     term: string,
     courseId: string,
@@ -200,7 +232,11 @@ export class ApiService {
   }
 
   /**
-   * Fetch previous attempts for a specific homework assignment
+   * Fetches previous submission attempts for a specific homework assignment.
+   * @param term - The term (e.g. "s24")
+   * @param courseId - The course ID
+   * @param gradeableId - The gradeable/assignment ID
+   * @returns The list of previous attempts
    */
   async fetchPreviousAttempts(
     term: string,
@@ -220,6 +256,12 @@ export class ApiService {
     }
   }
 
+  /**
+   * Returns the singleton ApiService instance, creating it if necessary.
+   * @param context - The extension context
+   * @param apiBaseUrl - The base URL of the Submitty API
+   * @returns The ApiService instance
+   */
   static getInstance(
     context: vscode.ExtensionContext,
     apiBaseUrl: string
