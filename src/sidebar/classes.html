@@ -63,9 +63,29 @@
       .homework-item:last-child {
         border-bottom: none;
       }
+      .profile-bar {
+        display: flex;
+        align-items: center;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--vscode-widget-border);
+      }
+      .profile-button {
+        max-width: 100%;
+        padding: 6px 12px;
+        font-size: 13px;
+        cursor: default;
+        text-align: left;
+        background-color: var(--vscode-button-secondaryBackground);
+        color: var(--vscode-button-secondaryForeground);
+        border: 1px solid
+          var(--vscode-button-border, var(--vscode-contrastBorder, transparent));
+        border-radius: 3px;
+      }
     </style>
   </head>
   <body>
+    <div id="profileBar" class="profile-bar" hidden></div>
     <section>
       <h3>Courses</h3>
       <div id="unarchivedCourses"></div>
@@ -94,9 +114,44 @@
         });
       }
 
+      function renderProfile(profile) {
+        const bar = document.getElementById('profileBar');
+        if (!bar) {
+          return;
+        }
+        if (
+          !profile ||
+          typeof profile !== 'object' ||
+          typeof profile.user_id !== 'string' ||
+          !profile.user_id
+        ) {
+          bar.hidden = true;
+          bar.innerHTML = '';
+          return;
+        }
+        var gn =
+          typeof profile.user_given_name === 'string'
+            ? profile.user_given_name
+            : '';
+        var fn =
+          typeof profile.user_family_name === 'string'
+            ? profile.user_family_name
+            : '';
+        var display = (gn + ' ' + fn).trim() || profile.user_id;
+        var title = '@' + profile.user_id;
+        bar.hidden = false;
+        bar.innerHTML =
+          '<button type="button" class="profile-button" title="' +
+          escapeHtml(title) +
+          '">' +
+          escapeHtml(display) +
+          '</button>';
+      }
+
       window.addEventListener('message', event => {
         const { command, data } = event.data;
         if (command === 'displayCourses') {
+          renderProfile(data && data.profile);
           const courses = normalizeCourses(data || {});
           const container = document.getElementById('unarchivedCourses');
           if (courses.length === 0) {

@@ -178,9 +178,19 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         })
       );
 
+      let profile = this.apiService.getCurrentUser();
+      if (!profile) {
+        try {
+          await this.apiService.fetchMe();
+          profile = this.apiService.getCurrentUser();
+        } catch (error: unknown) {
+          console.warn('Could not load profile for sidebar:', error);
+        }
+      }
+
       view.webview.postMessage({
         command: MessageCommand.DISPLAY_COURSES,
-        data: { courses: coursesWithGradables },
+        data: { courses: coursesWithGradables, profile },
       });
     } catch (error: unknown) {
       const err = error instanceof Error ? error.message : String(error);
@@ -247,7 +257,13 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         }
       }
 
-      await this.apiService.submitVCSGradable(term, courseId, gradeableId);
+      console.log('Submitting VCS gradable...');
+      const response = await this.apiService.submitVCSGradable(
+        term,
+        courseId,
+        gradeableId
+      );
+      console.log('Response:', response);
 
       const gradeDetails = await vscode.window.withProgress(
         {
