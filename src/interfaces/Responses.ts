@@ -19,3 +19,12 @@ export type LoginResponse = ApiResponse<{
 export type GradableResponse = ApiResponse<{
   [key: string]: Gradable;
 }>;
+
+/** Current user from `GET /api/me` (`data` field of the envelope). */
+export interface User {
+  user_id: string;
+  user_given_name: string;
+  user_family_name: string;
+}
+
+export type UserResponse = ApiResponse<User>;

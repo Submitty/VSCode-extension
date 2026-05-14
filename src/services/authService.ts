@@ -61,6 +61,16 @@ export class AuthService {
         this.apiService.setBaseUrl(baseUrl);
       }
 
+      try {
+        await this.apiService.fetchMe();
+      } catch (error: unknown) {
+        const err = error instanceof Error ? error.message : String(error);
+        console.warn('Failed to load user profile (/api/me):', error);
+        vscode.window.showWarningMessage(
+          `Submitty: could not load profile (${err}). Some features may not work until you reload the window.`
+        );
+      }
+
       return;
     }
 
@@ -140,6 +150,7 @@ export class AuthService {
     try {
       // Perform login
       await this.login(userId.trim(), password);
+      await this.apiService.fetchMe();
 
       vscode.window.showInformationMessage(
         'Successfully logged in to Submitty'

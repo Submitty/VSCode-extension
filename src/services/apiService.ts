@@ -6,6 +6,8 @@ import {
   CourseResponse,
   LoginResponse,
   GradableResponse,
+  UserResponse,
+  User,
 } from '../interfaces/Responses';
 import { AutoGraderDetails } from '../interfaces/AutoGraderDetails';
 
@@ -28,6 +30,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
 export class ApiService {
   private client: ApiClient;
   private static instance: ApiService;
+  private currentUser: User | null = null;
 
   constructor(
     private context: vscode.ExtensionContext,
@@ -42,6 +45,28 @@ export class ApiService {
    */
   setAuthorizationToken(token: string): void {
     this.client.setToken(token);
+    if (!token) {
+      this.currentUser = null;
+    }
+  }
+
+  getCurrentUser(): User | null {
+    return this.currentUser;
+  }
+
+  getCurrentUserId(): string | undefined {
+    return this.currentUser?.user_id;
+  }
+
+  /**
+   * Returns `user_id` from cache, or refetches `/api/me` if needed.
+   */
+  async ensureCurrentUserId(): Promise<string> {
+    if (this.currentUser?.user_id) {
+      return this.currentUser.user_id;
+    }
+    const user = await this.fetchMe();
+    return user.user_id;
   }
 
   /**
@@ -81,13 +106,22 @@ export class ApiService {
   }
 
   /**
-   * Fetches the current authenticated user's profile from the API.
-   * @returns The current user data
+   * Fetches the current authenticated user's profile from the API and updates the cache.
+   * @returns The current user (`data` object from the API envelope)
    */
-  async fetchMe(): Promise<any> {
+  async fetchMe(): Promise<User> {
     try {
-      const response = await this.client.get<any>('/api/me');
-      return response.data;
+      const response = await this.client.get<UserResponse>('/api/me');
+      const body = response.data;
+      if (
+        body?.status !== 'success' ||
+        typeof body.data?.user_id !== 'string' ||
+        !body.data.user_id
+      ) {
+        throw new Error('Invalid response from /api/me.');
+      }
+      this.currentUser = body.data;
+      return body.data;
     } catch (error: unknown) {
       throw new Error(getErrorMessage(error, 'Failed to fetch me.'), {
         cause: error,
@@ -205,6 +239,7 @@ export class ApiService {
 
   /**
    * Submits a VCS (version control) gradable to trigger autograding.
+   * Uses `user_id` from `/api/me` (see {@link fetchMe} / {@link ensureCurrentUserId}).
    * @param term - The term (e.g. "s24")
    * @param courseId - The course ID
    * @param gradeableId - The gradeable/assignment ID
@@ -214,11 +249,21 @@ export class ApiService {
     term: string,
     courseId: string,
     gradeableId: string
-  ): Promise<any> {
+  ): Promise<unknown> {
     try {
+      const userId = await this.ensureCurrentUserId();
       // git_repo_id is literally not used, but is required by the API *ugh*
-      const url = `/api/${term}/${courseId}/gradeable/${gradeableId}/upload?vcs_upload=true&git_repo_id=true`;
-      const response = await this.client.post<any>(url);
+      const url = `/api/${term}/${courseId}/gradeable/${gradeableId}/grade`;
+
+      const data = {
+        git_repo_id: true,
+        vcs_checkout: true,
+        user_id: userId,
+      };
+
+      const response = await this.client.post<unknown>(url, data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       return response.data;
     } catch (error: unknown) {
       console.error('Error submitting VCS gradable:', error);
